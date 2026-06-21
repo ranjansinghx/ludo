@@ -1101,11 +1101,13 @@ async function roomGet(code){
   }
 }
 // Always resolves (never throws). Result: {ok, unavailable, timedOut, forbidden}
+// Uses PATCH so concurrent writes don't clobber each other — only the fields
+// explicitly included in `data` are updated; everything else is left untouched.
 async function roomSet(code, data){
   if(!storageAvailable()) return { ok:false, unavailable:true, timedOut:false, forbidden:false };
   try{
     var res = await withTimeout(fetch(roomUrl(code), {
-      method:'PUT',
+      method:'PATCH',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify(data)
     }), STORAGE_TIMEOUT_MS);
@@ -1119,6 +1121,12 @@ async function roomSet(code, data){
     console.error('Ludo: roomSet failed', e);
     return { ok:false, unavailable:false, timedOut:false, forbidden:false };
   }
+}
+
+// Lightweight helper — writes only the status+game fields so the guest detects
+// game-start as fast as possible without touching seats or other metadata.
+async function roomSetStatus(code, status, game){
+  return roomSet(code, { status: status, game: game, updatedAt: Date.now() });
 }
 
 function randCode(){
@@ -1319,9 +1327,8 @@ document.getElementById('btn-join-confirm').addEventListener('click', async func
     if(taken.has(joinState.color)){ btn.disabled=false; btn.textContent='Join Room'; toast('That color was just taken \u2014 pick another'); document.getElementById('btn-join-check').click(); return; }
     if(room.seats.length>=room.maxPlayers){ btn.disabled=false; btn.textContent='Join Room'; toast('Room just filled up'); return; }
     room.seats.push({ color: joinState.color, clientId: App.online.myClientId, name: name });
-    room.version = (room.version||0)+1;
-    room.updatedAt = Date.now();
-    roomSet(joinState.code, room).then(function(setRes){
+    // PATCH only the seats array — avoids overwriting status/game fields the host may have set
+    roomSet(joinState.code, { seats: room.seats, updatedAt: Date.now() }).then(function(setRes){
       btn.disabled=false; btn.textContent='Join Room';
       if(!setRes.ok){
         if(setRes.timedOut) toast('Connection is slow right now \u2014 try again');
@@ -1472,18 +1479,17 @@ function startOnlineGame(roomSnapshot){
     var names = {};
     room.seats.forEach(function(s){ names[s.color] = s.name; });
     var game = newGame(colors, names);
-    room.status = 'playing';
-    room.game = game;
-    room.version = (room.version||0)+1;
-    room.updatedAt = Date.now();
-    roomSet(room.code, room).then(function(setRes){
+    // PATCH only status+game — minimal write so guests detect game-start fast
+    // and we never clobber seats that another player may have just written.
+    roomSetStatus(room.code, 'playing', game).then(function(setRes){
       if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
       if(!setRes.ok){
-        if(setRes.timedOut) toast('Connection is slow right now \u2014 try again');
-        else if(setRes.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
-        else toast('Could not start game \u2014 try again');
+        if(setRes.timedOut) toast('Connection is slow right now — try again');
+        else if(setRes.forbidden) toast('Database rejected the write — check your Firebase rules allow write on /ludo_rooms');
+        else toast('Could not start game — try again');
         return;
       }
+      _stopLobbyLoop();
       stopPolling();
       App.game = game;
       document.getElementById('log-card').style.display='none';
@@ -1493,7 +1499,7 @@ function startOnlineGame(roomSnapshot){
     }).catch(function(e){
       if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
       console.error('Ludo: start game error', e);
-      toast('Could not start game \u2014 try again');
+      toast('Could not start game — try again');
     });
   }).catch(function(e){
     if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
