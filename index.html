@@ -1350,7 +1350,11 @@ function enterLobby(){
   show('screen-lobby');
   pollLobbyOnce();
   stopPolling();
-  App.online.pollHandle = setInterval(pollLobbyOnce, 2000);
+  // Guests use a faster poll (800 ms) so they jump into the game quickly
+  // once the host presses Start. Hosts use 2 s since they only need to
+  // refresh the seat list.
+  var lobbyInterval = App.online.isHost ? 2000 : 800;
+  App.online.pollHandle = setInterval(pollLobbyOnce, lobbyInterval);
 }
 
 function pollLobbyOnce(){
@@ -1407,29 +1411,59 @@ function renderLobbySeats(room){
   }
 }
 
-function startOnlineGame(room){
-  var colors = room.seats.map(function(s){ return s.color; });
-  var names = {};
-  room.seats.forEach(function(s){ names[s.color] = s.name; });
-  var game = newGame(colors, names);
-  room.status='playing';
-  room.game = game;
-  room.version = (room.version||0)+1;
-  roomSet(room.code, room).then(function(res){
-    if(!res.ok){
-      if(res.timedOut) toast('Connection is slow right now \u2014 try again');
-      else if(res.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
-      else toast('Could not start game \u2014 try again');
+function startOnlineGame(roomSnapshot){
+  // Always fetch the freshest room data before starting so we don't miss
+  // any players who joined after the last lobby poll.
+  var startBtn = document.querySelector('#lobby-host-area .btn');
+  if(startBtn){ startBtn.disabled=true; startBtn.textContent='Starting\u2026'; }
+
+  roomGet(roomSnapshot.code).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){
+      if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+      toast('Could not reach server \u2014 try again');
       return;
     }
-    stopPolling();
-    App.game = game;
-    document.getElementById('log-card').style.display='none';
-    renderGame();
-    show('screen-game');
-    App.online.pollHandle = setInterval(pollGameOnce, 1500);
+    var room = res.room;
+    // Guard: another host already started (shouldn't happen, but be safe)
+    if(room.status !== 'lobby'){
+      stopPolling();
+      App.game = room.game;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 1500);
+      return;
+    }
+    var colors = room.seats.map(function(s){ return s.color; });
+    var names = {};
+    room.seats.forEach(function(s){ names[s.color] = s.name; });
+    var game = newGame(colors, names);
+    room.status = 'playing';
+    room.game = game;
+    room.version = (room.version||0)+1;
+    room.updatedAt = Date.now();
+    roomSet(room.code, room).then(function(setRes){
+      if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+      if(!setRes.ok){
+        if(setRes.timedOut) toast('Connection is slow right now \u2014 try again');
+        else if(setRes.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
+        else toast('Could not start game \u2014 try again');
+        return;
+      }
+      stopPolling();
+      App.game = game;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 1500);
+    }).catch(function(e){
+      if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+      console.error('Ludo: start game error', e);
+      toast('Could not start game \u2014 try again');
+    });
   }).catch(function(e){
-    console.error('Ludo: start game error', e);
+    if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+    console.error('Ludo: start game fetch error', e);
     toast('Could not start game \u2014 try again');
   });
 }
