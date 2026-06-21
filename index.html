@@ -449,7 +449,10 @@ input.code-input{
       </div>
       <div class="spacer" style="flex:1;"></div>
       <div id="lobby-host-area"></div>
-      <div id="lobby-guest-area" class="center-col muted" style="display:none;"><span class="waiting-pulse"></span>Waiting for the host to start the game&hellip;</div>
+      <div id="lobby-guest-area" class="center-col muted" style="display:none;">
+  <span class="waiting-pulse"></span>Waiting for the host to start the game&hellip;
+  <div id="lobby-debug" style="margin-top:14px; padding:10px 14px; background:rgba(0,0,0,.4); border-radius:10px; font-size:11px; font-family:monospace; color:#ffd; text-align:left; width:100%; max-height:160px; overflow-y:auto; word-break:break-all;"></div>
+</div>
     </div>
   </section>
 
@@ -1129,6 +1132,23 @@ async function roomSetStatus(code, status, game){
   return roomSet(code, { status: status, game: game, updatedAt: Date.now() });
 }
 
+// Full overwrite — used when we want to guarantee the complete document is written
+async function roomPut(code, data){
+  if(!storageAvailable()) return { ok:false, unavailable:true, timedOut:false, forbidden:false };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code), {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(data)
+    }), STORAGE_TIMEOUT_MS);
+    if(res.status===401 || res.status===403) return { ok:false, unavailable:false, timedOut:false, forbidden:true };
+    return { ok: !!(res && res.ok), unavailable:false, timedOut:false, forbidden:false };
+  }catch(e){
+    if(e && e.timeout) return { ok:false, unavailable:false, timedOut:true, forbidden:false };
+    return { ok:false, unavailable:false, timedOut:false, forbidden:false };
+  }
+}
+
 function randCode(){
   var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   var out='';
@@ -1384,21 +1404,29 @@ document.addEventListener('visibilitychange', function(){
   }
 });
 
+function _dbg(msg){
+  var el = document.getElementById('lobby-debug');
+  if(!el) return;
+  var t = new Date().toISOString().substr(11,8);
+  el.innerHTML = '<div>' + t + ' ' + msg + '</div>' + el.innerHTML;
+}
+
 function _runLobbyPoll(){
-  if(_lobbyPollActive) return;       // previous fetch still in flight — skip
-  if(!App.online.roomCode) return;   // not in a lobby
+  if(_lobbyPollActive) return;
+  if(!App.online.roomCode){ _dbg('no roomCode, skipping'); return; }
   _lobbyPollActive = true;
+  _dbg('fetching room ' + App.online.roomCode + '...');
   roomGet(App.online.roomCode).then(function(res){
     _lobbyPollActive = false;
-    if(res.timedOut || res.unavailable) return;  // transient — try next tick
+    if(res.timedOut){ _dbg('TIMED OUT'); return; }
+    if(res.unavailable){ _dbg('UNAVAILABLE'); return; }
+    if(res.forbidden){ _dbg('FORBIDDEN - check Firebase rules'); return; }
     var room = res.room;
-    if(!room){
-      _stopLobbyLoop();
-      toast('Room closed');
-      show('screen-home');
-      return;
-    }
-    if(room.status === 'playing' || room.status === 'finished'){
+    if(!room){ _dbg('room is null/missing'); _stopLobbyLoop(); toast('Room closed'); show('screen-home'); return; }
+    _dbg('status=' + room.status + ' seats=' + (room.seats ? room.seats.length : '?') + ' game=' + (room.game ? 'yes' : 'no'));
+    // Start if status says playing OR if game object exists (belt+suspenders)
+    if(room.status === 'playing' || room.status === 'finished' || (room.game && room.game.status === 'playing')){
+      _dbg('STARTING GAME NOW status=' + room.status);
       _stopLobbyLoop();
       App.game = room.game;
       document.getElementById('log-card').style.display = 'none';
@@ -1408,8 +1436,9 @@ function _runLobbyPoll(){
       return;
     }
     renderLobbySeats(room);
-  }).catch(function(){
-    _lobbyPollActive = false;  // always reset so the next tick can try
+  }).catch(function(e){
+    _lobbyPollActive = false;
+    _dbg('FETCH ERROR: ' + (e && e.message ? e.message : String(e)));
   });
 }
 
@@ -1453,25 +1482,24 @@ function renderLobbySeats(room){
 }
 
 function startOnlineGame(roomSnapshot){
-  // Always fetch the freshest room data before starting so we don't miss
-  // any players who joined after the last lobby poll.
   var startBtn = document.querySelector('#lobby-host-area .btn');
-  if(startBtn){ startBtn.disabled=true; startBtn.textContent='Starting\u2026'; }
+  if(startBtn){ startBtn.disabled=true; startBtn.textContent='Starting…'; }
 
+  // Fetch fresh room so we have latest seats
   roomGet(roomSnapshot.code).then(function(res){
     if(res.timedOut || res.unavailable || !res.room){
       if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
-      toast('Could not reach server \u2014 try again');
+      var reason = res.timedOut ? 'timed out' : res.forbidden ? 'forbidden - check Firebase rules' : 'no room data';
+      toast('Cannot reach server: ' + reason);
       return;
     }
     var room = res.room;
-    // Guard: another host already started (shouldn't happen, but be safe)
     if(room.status !== 'lobby'){
-      stopPolling();
+      // Already started somehow
+      _stopLobbyLoop(); stopPolling();
       App.game = room.game;
       document.getElementById('log-card').style.display='none';
-      renderGame();
-      show('screen-game');
+      renderGame(); show('screen-game');
       App.online.pollHandle = setInterval(pollGameOnce, 1500);
       return;
     }
@@ -1479,32 +1507,37 @@ function startOnlineGame(roomSnapshot){
     var names = {};
     room.seats.forEach(function(s){ names[s.color] = s.name; });
     var game = newGame(colors, names);
-    // PATCH only status+game — minimal write so guests detect game-start fast
-    // and we never clobber seats that another player may have just written.
-    roomSetStatus(room.code, 'playing', game).then(function(setRes){
+
+    // Write full room object with PUT — most reliable, no ambiguity
+    var fullRoom = {
+      code: room.code,
+      hostClientId: room.hostClientId,
+      maxPlayers: room.maxPlayers,
+      seats: room.seats,
+      status: 'playing',
+      game: game,
+      version: (room.version||0) + 1,
+      updatedAt: Date.now()
+    };
+    roomPut(room.code, fullRoom).then(function(setRes){
       if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
       if(!setRes.ok){
-        if(setRes.timedOut) toast('Connection is slow right now — try again');
-        else if(setRes.forbidden) toast('Database rejected the write — check your Firebase rules allow write on /ludo_rooms');
-        else toast('Could not start game — try again');
+        var reason = setRes.timedOut ? 'connection slow - try again' : setRes.forbidden ? 'FORBIDDEN: go to Firebase console > Realtime Database > Rules and set read+write to true' : 'write failed - try again';
+        toast(reason);
         return;
       }
-      _stopLobbyLoop();
-      stopPolling();
+      _stopLobbyLoop(); stopPolling();
       App.game = game;
       document.getElementById('log-card').style.display='none';
-      renderGame();
-      show('screen-game');
+      renderGame(); show('screen-game');
       App.online.pollHandle = setInterval(pollGameOnce, 1500);
     }).catch(function(e){
       if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
-      console.error('Ludo: start game error', e);
-      toast('Could not start game — try again');
+      toast('Write error: ' + (e && e.message ? e.message : String(e)));
     });
   }).catch(function(e){
     if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
-    console.error('Ludo: start game fetch error', e);
-    toast('Could not start game \u2014 try again');
+    toast('Network error: ' + (e && e.message ? e.message : String(e)));
   });
 }
 
@@ -1593,7 +1626,7 @@ function syncPushGame(){
     room.status = App.game.status==='finished' ? 'finished' : 'playing';
     room.version = (room.version||0)+1;
     room.updatedAt = Date.now();
-    return roomSet(App.online.roomCode, room);
+    return roomPut(App.online.roomCode, room);
   }).then(function(res){
     onlineWriting = false;
     return !!(res && res.ok);
