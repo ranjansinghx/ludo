@@ -1343,75 +1343,71 @@ document.getElementById('btn-join-confirm').addEventListener('click', async func
 });
 
 /* ======================================================================
-   ONLINE MODE: lobby
-   Uses Firebase SSE (EventSource) for instant push — guests jump into the
-   game the moment the host presses Start, no polling delay.
-   Falls back to 800 ms polling if SSE is unavailable.
+   ONLINE MODE: lobby  — hard-fixed
+   Approach: pure polling at 500 ms with no SSE complexity.
+   The loop is self-healing: it tracks whether a poll is already in-flight
+   so concurrent fetches never pile up, restarts itself if the interval
+   is ever cleared, and re-fires immediately when the tab becomes visible
+   again (handles phone-lock / app-switch).
    ====================================================================== */
-var lobbySSE = null;
+var _lobbyPollTimer  = null;
+var _lobbyPollActive = false;   // true while a fetch is in-flight
 
-function stopLobbySSE(){
-  if(lobbySSE){ try{ lobbySSE.close(); }catch(e){} lobbySSE = null; }
+function _stopLobbyLoop(){
+  if(_lobbyPollTimer){ clearInterval(_lobbyPollTimer); _lobbyPollTimer = null; }
+  _lobbyPollActive = false;
 }
+
+// keep old names so nothing else breaks
+function stopLobbySSE(){ /* no-op — SSE removed */ }
 
 function enterLobby(){
   document.getElementById('lobby-code').textContent = App.online.roomCode;
   show('screen-lobby');
-  pollLobbyOnce(); // immediate snapshot so seats render right away
-  startLobbySSE(); // real-time push from here on
-}
-
-function startLobbySSE(){
-  stopLobbySSE();
+  _stopLobbyLoop();
   stopPolling();
-  try{
-    // Firebase Realtime Database streams changes via SSE at the same URL + ?sse=true
-    var es = new EventSource(roomUrl(App.online.roomCode) + '?sse=true');
-    lobbySSE = es;
-    es.addEventListener('put', function(e){
-      try{
-        var payload = JSON.parse(e.data);
-        var room = payload.data;
-        if(!room){ toast('Room closed'); stopLobbySSE(); stopPolling(); show('screen-home'); return; }
-        if(room.status==='playing' || room.status==='finished'){
-          stopLobbySSE(); stopPolling();
-          App.game = room.game;
-          document.getElementById('log-card').style.display='none';
-          renderGame(); show('screen-game');
-          App.online.pollHandle = setInterval(pollGameOnce, 1500);
-          return;
-        }
-        renderLobbySeats(room);
-      }catch(err){ console.warn('Ludo: SSE parse error', err); }
-    });
-    es.addEventListener('patch', function(){ pollLobbyOnce(); });
-    es.onerror = function(){
-      console.warn('Ludo: SSE dropped, falling back to polling');
-      stopLobbySSE();
-      if(!App.online.pollHandle) App.online.pollHandle = setInterval(pollLobbyOnce, 800);
-    };
-  }catch(e){
-    console.warn('Ludo: EventSource unavailable, using polling fallback');
-    App.online.pollHandle = setInterval(pollLobbyOnce, 800);
-  }
+  _runLobbyPoll();                                     // fire immediately
+  _lobbyPollTimer = setInterval(_runLobbyPoll, 500);  // then every 500 ms
 }
 
-function pollLobbyOnce(){
+// Re-poll the instant the page becomes visible (tab switch, phone unlock, etc.)
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible' && _lobbyPollTimer){
+    _runLobbyPoll();
+  }
+});
+
+function _runLobbyPoll(){
+  if(_lobbyPollActive) return;       // previous fetch still in flight — skip
+  if(!App.online.roomCode) return;   // not in a lobby
+  _lobbyPollActive = true;
   roomGet(App.online.roomCode).then(function(res){
-    if(res.timedOut || res.unavailable) return;
+    _lobbyPollActive = false;
+    if(res.timedOut || res.unavailable) return;  // transient — try next tick
     var room = res.room;
-    if(!room){ toast('Room closed'); stopLobbySSE(); stopPolling(); show('screen-home'); return; }
-    if(room.status==='playing' || room.status==='finished'){
-      stopLobbySSE(); stopPolling();
+    if(!room){
+      _stopLobbyLoop();
+      toast('Room closed');
+      show('screen-home');
+      return;
+    }
+    if(room.status === 'playing' || room.status === 'finished'){
+      _stopLobbyLoop();
       App.game = room.game;
-      document.getElementById('log-card').style.display='none';
-      renderGame(); show('screen-game');
+      document.getElementById('log-card').style.display = 'none';
+      renderGame();
+      show('screen-game');
       App.online.pollHandle = setInterval(pollGameOnce, 1500);
       return;
     }
     renderLobbySeats(room);
+  }).catch(function(){
+    _lobbyPollActive = false;  // always reset so the next tick can try
   });
 }
+
+// Legacy alias — keep callers happy
+function pollLobbyOnce(){ _runLobbyPoll(); }
 
 function renderLobbySeats(room){
   var el = document.getElementById('lobby-seats');
@@ -1520,7 +1516,7 @@ document.getElementById('btn-copy-code').addEventListener('click', function(){
 });
 
 document.getElementById('lobby-back').addEventListener('click', function(){
-  stopLobbySSE();
+  _stopLobbyLoop();
   stopPolling();
   App.mode=null;
   show('screen-online-menu');
