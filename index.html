@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ludo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --felt: #133229;
+  --felt-2: #0e2620;
+  --wood: #8a5a34;
+  --wood-light:#a9764c;
+  --board: #f6ecd9;
+  --board-line: #d9c7a3;
+  --ink: #221c14;
+  --cream: #f3ead9;
+  --cream-dim: #c9bfae;
+
+  --red: #d6453c;
+  --red-deep:#a32f28;
+  --green: #2f9e5b;
+  --green-deep:#1f7843;
+  --yellow: #e7b53e;
+  --yellow-deep:#b9871d;
+  --blue: #3f7fd6;
+  --blue-deep:#2b5fa8;
+
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 8px;
+  --shadow-deep: 0 10px 30px rgba(0,0,0,.45);
+  --font-display: 'Baloo 2', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+html,body{height:100%;}
+body{
+  margin:0;
+  min-height:100vh;
+  min-height:100dvh;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%, #1c4536 0%, var(--felt) 55%, var(--felt-2) 100%);
+  color:var(--cream);
+  font-family:var(--font-body);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  overflow-x:hidden;
+}
+.app{
+  width:100%;
+  max-width:480px;
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  position:relative;
+}
+.screen{display:none; flex-direction:column; flex:1; animation:fadeIn .35s ease;}
+.screen.active{display:flex;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+h1,h2,h3{font-family:var(--font-display); margin:0; letter-spacing:.2px;}
+p{margin:0;}
+button{font-family:var(--font-body); cursor:pointer;}
+
+/* ---------- Reusable bits ---------- */
+.btn{
+  appearance:none; border:none; border-radius:14px;
+  padding:14px 18px; font-weight:700; font-size:16px;
+  font-family:var(--font-display);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  user-select:none;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:linear-gradient(180deg,#ffd873,#e7b53e); color:#3a2705; box-shadow:0 4px 0 var(--yellow-deep), 0 8px 18px rgba(0,0,0,.35);}
+.btn-primary:active{box-shadow:0 1px 0 var(--yellow-deep);}
+.btn-secondary{background:rgba(255,255,255,.07); color:var(--cream); border:1.5px solid rgba(255,255,255,.18);}
+.btn-secondary:active{background:rgba(255,255,255,.14);}
+.btn-ghost{background:transparent; color:var(--cream-dim); font-weight:600; padding:10px 12px;}
+.btn-block{width:100%;}
+.btn[disabled]{opacity:.4; pointer-events:none;}
+.btn-sm{padding:10px 14px; font-size:14px; border-radius:11px;}
+
+.card{
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:var(--radius-lg);
+  padding:18px;
+}
+
+.topbar{display:flex; align-items:center; gap:10px; margin-bottom:18px; min-height:34px;}
+.topbar .spacer{flex:1;}
+.back-btn{
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+  color:var(--cream); display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.back-btn:active{background:rgba(255,255,255,.18);}
+
+.field-label{font-size:12.5px; text-transform:uppercase; letter-spacing:1.2px; color:var(--cream-dim); font-weight:700; margin-bottom:8px; display:block;}
+input[type=text]{
+  width:100%; background:rgba(0,0,0,.25); border:1.5px solid rgba(255,255,255,.15);
+  border-radius:12px; padding:13px 14px; color:var(--cream); font-family:var(--font-body);
+  font-size:16px; outline:none;
+}
+input[type=text]:focus{border-color: var(--yellow);}
+input.code-input{
+  font-family:var(--font-mono); letter-spacing:6px; text-align:center; font-size:22px;
+  text-transform:uppercase;
+}
+
+.chip-row{display:flex; flex-wrap:wrap; gap:9px;}
+.color-chip{
+  display:flex; align-items:center; gap:8px;
+  padding:10px 14px; border-radius:30px;
+  background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.12);
+  font-weight:700; font-size:14.5px; color:var(--cream-dim);
+}
+.color-chip .dot{width:13px;height:13px;border-radius:50%; box-shadow: inset 0 -2px 2px rgba(0,0,0,.25);}
+.color-chip.selected{background:rgba(255,255,255,.12); color:var(--cream); border-color:rgba(255,255,255,.4);}
+.color-chip.disabled{opacity:.3; pointer-events:none;}
+
+/* ---------- Home screen ---------- */
+.home-hero{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:6px; padding-bottom:30px;}
+.logo-row{display:flex; gap:7px; margin-bottom:18px;}
+.logo-die{width:30px;height:30px; border-radius:8px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.3); animation: bob 2.6s ease-in-out infinite;}
+.logo-die:nth-child(1){background:var(--red); animation-delay:0s;}
+.logo-die:nth-child(2){background:var(--green); animation-delay:.15s;}
+.logo-die:nth-child(3){background:var(--yellow); animation-delay:.3s;}
+.logo-die:nth-child(4){background:var(--blue); animation-delay:.45s;}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-7px) rotate(8deg);}}
+.home-hero h1{font-size:52px; color:var(--cream); text-shadow:0 4px 0 rgba(0,0,0,.3);}
+.home-hero .tag{color:var(--cream-dim); font-size:15px; margin-top:4px; max-width:280px;}
+.home-actions{width:100%; display:flex; flex-direction:column; gap:12px; margin-top:30px;}
+.mode-btn{
+  width:100%; text-align:left; padding:18px; border-radius:18px;
+  display:flex; align-items:center; gap:14px;
+  background:rgba(255,255,255,.05); border:1.5px solid rgba(255,255,255,.1);
+  color:var(--cream);
+}
+.mode-btn:active{background:rgba(255,255,255,.1);}
+.mode-btn .icon{
+  width:46px;height:46px;border-radius:13px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:22px;
+}
+.mode-btn .txt strong{display:block; font-family:var(--font-display); font-size:17px;}
+.mode-btn .txt span{display:block; font-size:13px; color:var(--cream-dim); margin-top:2px;}
+
+/* ---------- Setup screens ---------- */
+.setup-body{flex:1; display:flex; flex-direction:column; gap:22px;}
+.player-row{
+  display:flex; align-items:center; gap:11px; padding:11px 12px;
+  background:rgba(255,255,255,.05); border-radius:13px; border:1.5px solid rgba(255,255,255,.08);
+}
+.player-row .dot{width:16px;height:16px;border-radius:50%; flex-shrink:0; box-shadow: inset 0 -2px 2px rgba(0,0,0,.25);}
+.player-row input{background:transparent; border:none; padding:4px 0; font-size:15px; font-weight:600; color:var(--cream); width:100%;}
+.player-row input:focus{outline:none;}
+.stepper{display:flex; align-items:center; gap:14px; justify-content:center;}
+.stepper button{
+  width:42px;height:42px;border-radius:50%; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16);
+  color:var(--cream); font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center;
+}
+.stepper .count{font-family:var(--font-display); font-size:26px; min-width:30px; text-align:center;}
+
+/* ---------- Lobby ---------- */
+.ticket{
+  background: var(--board); color:var(--ink); border-radius:18px; padding:22px 18px;
+  position:relative; text-align:center; box-shadow:var(--shadow-deep);
+}
+.ticket .lbl{font-size:11.5px; letter-spacing:2px; text-transform:uppercase; color:#8a7a59; font-weight:700;}
+.ticket .code{font-family:var(--font-mono); font-size:36px; font-weight:700; letter-spacing:8px; margin:8px 0 4px; color:var(--red-deep);}
+.ticket .hint{font-size:12.5px; color:#8a7a59;}
+.seats{display:flex; flex-direction:column; gap:9px; margin-top:16px;}
+.seat{
+  display:flex; align-items:center; gap:11px; padding:12px 13px; border-radius:13px;
+  background:rgba(255,255,255,.05); border:1.5px solid rgba(255,255,255,.08);
+}
+.seat .dot{width:15px;height:15px;border-radius:50%; flex-shrink:0;}
+.seat .nm{font-weight:600; flex:1;}
+.seat .you{font-size:11px; color:var(--yellow); font-weight:700;}
+.seat.empty{opacity:.35; border-style:dashed;}
+.waiting-pulse{display:inline-block; width:8px;height:8px;border-radius:50%; background:var(--yellow); animation:pulse 1.4s ease infinite; margin-right:6px;}
+@keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
+
+/* ---------- Game screen ---------- */
+.game-top{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.turn-banner{
+  flex:1; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:14px;
+  background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.1);
+  min-width:0;
+}
+.turn-banner .dot{width:14px;height:14px;border-radius:50%; flex-shrink:0; box-shadow: inset 0 -2px 2px rgba(0,0,0,.3);}
+.turn-banner .info{flex:1; min-width:0;}
+.turn-banner .info .who{font-weight:700; font-size:14px; font-family:var(--font-display);}
+.turn-banner .info .what{font-size:11.5px; color:var(--cream-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.icon-btn{
+  width:36px;height:36px;border-radius:50%; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14);
+  color:var(--cream); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;
+}
+
+.board-wrap{
+  background: linear-gradient(155deg, var(--wood-light), var(--wood) 60%);
+  border-radius:18px; padding:9px; box-shadow:var(--shadow-deep);
+}
+.board{
+  width:100%; aspect-ratio:1/1; background:var(--board); border-radius:10px; overflow:hidden;
+  display:grid; grid-template-columns:repeat(15,1fr); grid-template-rows:repeat(15,1fr);
+  position:relative; box-shadow: inset 0 0 0 2px var(--board-line);
+}
+.cell{ border:.5px solid rgba(0,0,0,.06); }
+.cell.path{background:var(--board);}
+.cell.safe{ background-image: radial-gradient(circle, rgba(0,0,0,.13) 0 9%, transparent 10%); background-size:100% 100%; }
+.cell.center{
+  display:flex; align-items:center; justify-content:center; font-size:60%;
+}
+.yard{
+  border-radius:14px; position:relative; padding:10%;
+  display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:8%;
+}
+.yard::before{
+  content:""; position:absolute; inset:8%; background:rgba(255,255,255,.88); border-radius:12px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.12);
+}
+.yard-slot{
+  position:relative; z-index:1; border-radius:50%; background:rgba(0,0,0,.07);
+  display:flex; align-items:center; justify-content:center;
+}
+.piece{
+  width:78%; aspect-ratio:1/1; border-radius:50%;
+  box-shadow: 0 2px 0 rgba(0,0,0,.3), inset 0 -3px 4px rgba(0,0,0,.25), inset 0 2px 2px rgba(255,255,255,.35);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.piece.movable{ animation: piecePulse 1s ease infinite; cursor:pointer; }
+.piece.justmoved{ animation: piecePop .35s ease; }
+@keyframes piecePulse{0%,100%{transform:scale(1); filter:brightness(1);} 50%{transform:scale(1.15); filter:brightness(1.3);}}
+@keyframes piecePop{0%{transform:scale(.4);} 60%{transform:scale(1.25);} 100%{transform:scale(1);}}
+.travel-wrap{
+  position:absolute;
+  width:6.6667%; height:6.6667%;
+  display:flex; align-items:center; justify-content:center;
+  z-index:40; pointer-events:none;
+  transition: left .19s cubic-bezier(.45,0,.2,1), top .19s cubic-bezier(.45,0,.2,1);
+}
+.travel-wrap .piece{ width:76%; }
+.travel-wrap.hop .piece{ animation: pieceHop .19s ease; }
+@keyframes pieceHop{ 0%{transform:scale(1) translateY(0);} 45%{transform:scale(1.28) translateY(-22%);} 100%{transform:scale(1) translateY(0);} }
+.hop-count{
+  position:absolute; z-index:41; pointer-events:none;
+  font-family:var(--font-display); font-weight:700; font-size:11px; color:#3a2705;
+  background:linear-gradient(180deg,#ffe49b,#e7b53e); border-radius:50%;
+  width:15px; height:15px; display:flex; align-items:center; justify-content:center;
+  transform:translate(40%,-55%); box-shadow:0 2px 4px rgba(0,0,0,.35);
+  animation: countPop .5s ease forwards;
+}
+@keyframes countPop{0%{opacity:0; transform:translate(40%,-30%) scale(.5);} 25%{opacity:1; transform:translate(40%,-55%) scale(1.1);} 75%{opacity:1;} 100%{opacity:0; transform:translate(40%,-75%) scale(.9);}}
+.cell-stack{
+  position:relative; display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+  width:100%; height:100%; z-index:5; padding:6%;
+}
+.cell-stack .piece{width:46%;}
+.cell-stack.single .piece{width:74%;}
+.finish-tray{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:1px; width:100%; height:100%; padding:6%;}
+.finish-tray .piece{width:42%; box-shadow:none; border:1px solid rgba(0,0,0,.2);}
+.center-badge{font-size:18px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.3));}
+
+/* ---------- Dice / controls ---------- */
+.controls{margin-top:16px; display:flex; align-items:center; gap:16px;}
+.dice-wrap{display:flex; flex-direction:column; align-items:center; gap:8px; flex-shrink:0;}
+.dice{
+  width:64px;height:64px; border-radius:16px;
+  background: linear-gradient(155deg,#fffdf8,#e9e2d2);
+  box-shadow: 0 5px 0 #b8ad95, 0 10px 16px rgba(0,0,0,.35);
+  display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  padding:10px; flex-shrink:0;
+}
+.dice.disabled{ filter:grayscale(.6) brightness(.85); }
+.dice.rolling{ animation: diceRoll .6s ease; }
+@keyframes diceRoll{
+  0%{transform:rotate(0deg) scale(1);}
+  20%{transform:rotate(120deg) scale(1.08);}
+  40%{transform:rotate(220deg) scale(.95);}
+  60%{transform:rotate(330deg) scale(1.08);}
+  80%{transform:rotate(420deg) scale(.97);}
+  100%{transform:rotate(480deg) scale(1);}
+}
+.pip{border-radius:50%; background:var(--ink); width:100%; height:100%; justify-self:center; align-self:center; transform:scale(.55); opacity:0;}
+.pip.on{opacity:1;}
+.controls .roll-area{flex:1; display:flex; flex-direction:column; gap:8px; min-width:0;}
+.extra-tag{
+  display:inline-flex; align-self:flex-start; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+  color:#3a2705; background: linear-gradient(180deg,#ffe49b,#e7b53e); padding:4px 10px; border-radius:20px;
+}
+
+.log-card{margin-top:14px; max-height:108px; overflow-y:auto;}
+.log-card .field-label{margin-bottom:6px;}
+.log-line{font-size:12.5px; color:var(--cream-dim); padding:3px 0; border-top:1px solid rgba(255,255,255,.06);}
+.log-line:first-child{border-top:none;}
+.log-line b{color:var(--cream);}
+
+/* ---------- Game over ---------- */
+.gameover-body{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px;}
+.trophy{font-size:64px; animation: bob 2.2s ease-in-out infinite;}
+.win-color{font-family:var(--font-display); font-size:30px;}
+.gameover-actions{width:100%; display:flex; flex-direction:column; gap:10px; margin-top:24px;}
+
+/* misc */
+.muted{color:var(--cream-dim); font-size:13.5px; line-height:1.5;}
+.center-col{display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px;}
+.row{display:flex; align-items:center; gap:10px;}
+.status-banner{
+  padding:13px 14px; border-radius:13px; font-size:13.5px; line-height:1.5; font-weight:600;
+  display:flex; align-items:flex-start; gap:9px;
+}
+.status-banner.warn{ background:rgba(231,181,62,.14); border:1.5px solid rgba(231,181,62,.4); color:#ffe7ad; }
+.status-banner.checking{ background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.12); color:var(--cream-dim); }
+.status-banner .retry-link{ color:var(--yellow); text-decoration:underline; font-weight:700; cursor:pointer; }
+.toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+  background:rgba(20,20,16,.92); color:var(--cream); padding:11px 18px; border-radius:30px;
+  font-size:13.5px; font-weight:600; box-shadow:0 6px 20px rgba(0,0,0,.4); z-index:200;
+  opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  max-width:88%; text-align:center;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- HOME -->
+  <section class="screen" id="screen-home">
+    <div class="home-hero">
+      <div class="logo-row"><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div></div>
+      <h1>Ludo</h1>
+      <p class="tag">Race all four of your pieces home. Roll, capture, and don't get sent back to start.</p>
+      <div class="home-actions">
+        <button class="mode-btn" id="btn-local">
+          <div class="icon" style="background:rgba(231,181,62,.18); color:var(--yellow);">&#128241;</div>
+          <div class="txt"><strong>Play on this device</strong><span>Pass the phone around, 2&ndash;4 players</span></div>
+        </button>
+        <button class="mode-btn" id="btn-online">
+          <div class="icon" style="background:rgba(63,127,214,.18); color:var(--blue);">&#128279;</div>
+          <div class="txt"><strong>Play online with friends</strong><span>Share a link &amp; room code</span></div>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOCAL SETUP -->
+  <section class="screen" id="screen-local-setup">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>This device</h2></div>
+    <div class="setup-body">
+      <div>
+        <span class="field-label">Players (tap to include)</span>
+        <div class="chip-row" id="local-color-chips"></div>
+      </div>
+      <div id="local-name-rows" style="display:flex; flex-direction:column; gap:9px;"></div>
+      <div class="spacer" style="flex:1;"></div>
+      <button class="btn btn-primary btn-block" id="btn-local-start">Start Game</button>
+    </div>
+  </section>
+
+  <!-- ONLINE MENU -->
+  <section class="screen" id="screen-online-menu">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>Play online</h2></div>
+    <div class="setup-body">
+      <p class="muted">Share this app's link or file with friends, then meet up with a room code below. Moves sync every couple of seconds &mdash; no need to refresh.</p>
+      <div id="online-status-banner" style="display:none;"></div>
+      <button class="mode-btn" id="btn-create-room">
+        <div class="icon" style="background:rgba(63,158,91,.18); color:var(--green);">&#65291;</div>
+        <div class="txt"><strong>Create a room</strong><span>You'll get a code to share</span></div>
+      </button>
+      <button class="mode-btn" id="btn-join-room">
+        <div class="icon" style="background:rgba(214,69,60,.18); color:var(--red);">&#8987;</div>
+        <div class="txt"><strong>Join a room</strong><span>Enter a friend's code</span></div>
+      </button>
+    </div>
+  </section>
+
+  <!-- CREATE ROOM -->
+  <section class="screen" id="screen-create">
+    <div class="topbar"><button class="back-btn" data-back="screen-online-menu">&larr;</button><h2>Create room</h2></div>
+    <div class="setup-body">
+      <div>
+        <span class="field-label">Your name</span>
+        <input type="text" id="create-name" maxlength="16" placeholder="Player 1">
+      </div>
+      <div>
+        <span class="field-label">Your color</span>
+        <div class="chip-row" id="create-color-chips"></div>
+      </div>
+      <div>
+        <span class="field-label">Total seats</span>
+        <div class="stepper">
+          <button id="create-seats-minus" type="button">&minus;</button>
+          <div class="count" id="create-seats-count">4</div>
+          <button id="create-seats-plus" type="button">+</button>
+        </div>
+      </div>
+      <div class="spacer" style="flex:1;"></div>
+      <button class="btn btn-primary btn-block" id="btn-create-confirm">Create Room</button>
+    </div>
+  </section>
+
+  <!-- JOIN ROOM -->
+  <section class="screen" id="screen-join">
+    <div class="topbar"><button class="back-btn" data-back="screen-online-menu">&larr;</button><h2>Join room</h2></div>
+    <div class="setup-body">
+      <div>
+        <span class="field-label">Room code</span>
+        <input type="text" id="join-code" class="code-input" maxlength="5" placeholder="ABCDE">
+      </div>
+      <div>
+        <span class="field-label">Your name</span>
+        <input type="text" id="join-name" maxlength="16" placeholder="Player">
+      </div>
+      <div id="join-color-section" style="display:none;">
+        <span class="field-label">Your color</span>
+        <div class="chip-row" id="join-color-chips"></div>
+      </div>
+      <p class="muted" id="join-status"></p>
+      <div class="spacer" style="flex:1;"></div>
+      <button class="btn btn-secondary btn-block" id="btn-join-check">Find Room</button>
+      <button class="btn btn-primary btn-block" id="btn-join-confirm" style="display:none; margin-top:10px;">Join Room</button>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section class="screen" id="screen-lobby">
+    <div class="topbar"><button class="back-btn" id="lobby-back">&larr;</button><h2>Lobby</h2></div>
+    <div class="setup-body">
+      <div class="ticket">
+        <div class="lbl">Room Code</div>
+        <div class="code" id="lobby-code">&mdash;</div>
+        <div class="hint">Tell your friends to tap "Join a room"</div>
+      </div>
+      <button class="btn btn-secondary btn-block btn-sm" id="btn-copy-code">Copy invite message</button>
+      <div>
+        <span class="field-label">Seats</span>
+        <div class="seats" id="lobby-seats"></div>
+      </div>
+      <div class="spacer" style="flex:1;"></div>
+      <div id="lobby-host-area"></div>
+      <div id="lobby-guest-area" class="center-col muted" style="display:none;"><span class="waiting-pulse"></span>Waiting for the host to start the game&hellip;</div>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen" id="screen-game">
+    <div class="game-top">
+      <button class="icon-btn" id="btn-leave-game">&larr;</button>
+      <div class="turn-banner">
+        <div class="dot" id="turn-dot"></div>
+        <div class="info">
+          <div class="who" id="turn-who">&mdash;</div>
+          <div class="what" id="turn-what">&mdash;</div>
+        </div>
+      </div>
+      <button class="icon-btn" id="btn-log-toggle">&#128220;</button>
+    </div>
+
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+
+    <div class="controls">
+      <div class="dice-wrap">
+        <div class="dice" id="dice">
+          <div class="pip" data-i="0"></div><div class="pip" data-i="1"></div><div class="pip" data-i="2"></div>
+          <div class="pip" data-i="3"></div><div class="pip" data-i="4"></div><div class="pip" data-i="5"></div>
+          <div class="pip" data-i="6"></div><div class="pip" data-i="7"></div><div class="pip" data-i="8"></div>
+        </div>
+      </div>
+      <div class="roll-area">
+        <button class="btn btn-primary" id="btn-roll">Roll Dice</button>
+        <div id="extra-tag-area"></div>
+      </div>
+    </div>
+
+    <div class="card log-card" id="log-card" style="display:none;">
+      <span class="field-label">Game log</span>
+      <div id="log-lines"></div>
+    </div>
+  </section>
+
+  <!-- GAME OVER -->
+  <section class="screen" id="screen-gameover">
+    <div class="gameover-body">
+      <div class="trophy">&#127942;</div>
+      <div class="muted" style="text-transform:uppercase; letter-spacing:2px; font-size:12px; font-weight:700;">Winner</div>
+      <div class="win-color" id="gameover-color">&mdash;</div>
+      <div class="gameover-actions">
+        <button class="btn btn-primary btn-block" id="btn-play-again">Play Again</button>
+        <button class="btn btn-secondary btn-block" id="btn-gameover-home">Back to Home</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ======================================================================
+   GEOMETRY  (verified separately: 52 unique cells, correct adjacency,
+   home-column entries adjacent to each color's lap-completion cell)
+   ====================================================================== */
+function rotate(r,c){ return [c, 14-r]; }
+var quarter0 = [[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[6,6],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6]];
+function rotateList(list){ return list.map(function(p){ return rotate(p[0],p[1]); }); }
+var quarter1 = rotateList(quarter0), quarter2 = rotateList(quarter1), quarter3 = rotateList(quarter2);
+var MAIN_TRACK = quarter0.concat(quarter1, quarter2, quarter3); // 52 cells, [row,col]
+
+var COLORS = {
+  red:    { startIdx: 1,  home:[[7,0],[7,1],[7,2],[7,3],[7,4],[7,5]],       yardBox:[0,0], trayCell:[7,6], hex:'var(--red)',    deep:'var(--red-deep)',    label:'Red' },
+  green:  { startIdx: 14, home:[[0,7],[1,7],[2,7],[3,7],[4,7],[5,7]],       yardBox:[0,9], trayCell:[6,7], hex:'var(--green)',  deep:'var(--green-deep)',  label:'Green' },
+  yellow: { startIdx: 27, home:[[7,14],[7,13],[7,12],[7,11],[7,10],[7,9]],  yardBox:[9,9], trayCell:[7,8], hex:'var(--yellow)', deep:'var(--yellow-deep)', label:'Yellow' },
+  blue:   { startIdx: 40, home:[[14,7],[13,7],[12,7],[11,7],[10,7],[9,7]], yardBox:[9,0], trayCell:[8,7], hex:'var(--blue)',   deep:'var(--blue-deep)',   label:'Blue' }
+};
+var ALL_COLORS = ['red','green','yellow','blue'];
+var SAFE_IDX = new Set([1,9,14,22,27,35,40,48]);
+
+function globalIdxFor(color, p){ if(p<0||p>50) return null; return (COLORS[color].startIdx + p) % 52; }
+function cellCoordFor(color, p){
+  if(p<0) return null;
+  if(p<=50) return MAIN_TRACK[globalIdxFor(color,p)];
+  if(p<=56) return COLORS[color].home[p-51];
+  return null; // finished
+}
+
+/* ======================================================================
+   GAME ENGINE
+   ====================================================================== */
+function newGame(colorList, names){
+  var pieces = [];
+  colorList.forEach(function(c){
+    for(var i=0;i<4;i++) pieces.push({color:c, idx:i, p:-1});
+  });
+  return {
+    colors: colorList.slice(),
+    names: Object.assign({}, names),
+    pieces: pieces,
+    turn: 0,
+    dice: null,
+    diceRolled: false,
+    consecutiveSixes: 0,
+    movable: [],
+    log: [],
+    status: 'playing',
+    winner: null,
+    lastMove: null,
+    justGotExtraTurn: false,
+    firstRollDone: false
+  };
+}
+
+function findPiece(game, color, idx){
+  for(var i=0;i<game.pieces.length;i++){
+    var p = game.pieces[i];
+    if(p.color===color && p.idx===idx) return p;
+  }
+  return null;
+}
+
+function legalMoves(game, color, roll){
+  var out = [];
+  for(var idx=0; idx<4; idx++){
+    var piece = findPiece(game, color, idx);
+    if(piece.p===57) continue;
+    if(piece.p===-1){ if(roll===6) out.push(idx); continue; }
+    if(piece.p+roll<=57) out.push(idx);
+  }
+  return out;
+}
+
+function colorLabel(game, color){ return (game.names && game.names[color]) || COLORS[color].label; }
+
+function engineRoll(game){
+  if(game.status!=='playing') return;
+  if(game.diceRolled) return;
+  var roll;
+  if(!game.firstRollDone){
+    roll = 6;
+    game.firstRollDone = true;
+  } else {
+    roll = 1+Math.floor(Math.random()*6);
+  }
+  game.dice = roll;
+  game.diceRolled = true;
+  game.consecutiveSixes = (roll===6) ? game.consecutiveSixes+1 : 0;
+  var color = game.colors[game.turn];
+  var nm = colorLabel(game,color);
+
+  if(game.consecutiveSixes>=3){
+    game.log.unshift(nm + ' rolled three 6s in a row \u2014 turn forfeited.');
+    game.movable = [];
+    game.justGotExtraTurn = false;
+    endTurn(game);
+    return;
+  }
+  var moves = legalMoves(game, color, roll);
+  game.movable = moves;
+  if(moves.length===0){
+    game.log.unshift(nm + ' rolled ' + roll + ' \u2014 no legal move.');
+    game.justGotExtraTurn = false;
+    endTurn(game);
+  }
+}
+
+function engineMove(game, pieceIdx){
+  if(game.status!=='playing') return;
+  if(!game.diceRolled) return;
+  if(game.movable.indexOf(pieceIdx)===-1) return;
+  var color = game.colors[game.turn];
+  var nm = colorLabel(game,color);
+  var roll = game.dice;
+  var piece = findPiece(game, color, pieceIdx);
+  var newP = (piece.p===-1) ? 0 : piece.p+roll;
+  piece.p = newP;
+  game.lastMove = {color:color, idx:pieceIdx};
+
+  var captured = [];
+  if(newP>=0 && newP<=50){
+    var gIdx = globalIdxFor(color, newP);
+    if(!SAFE_IDX.has(gIdx)){
+      game.pieces.forEach(function(pc){
+        if(pc.color===color) return;
+        if(pc.p<0 || pc.p>50) return;
+        if(globalIdxFor(pc.color, pc.p)===gIdx){ pc.p=-1; captured.push(pc); }
+      });
+    }
+  }
+  var finished = newP===57;
+
+  if(captured.length){
+    var names = captured.map(function(c){ return colorLabel(game,c.color); }).join(', ');
+    game.log.unshift(nm + ' captured ' + names + '\u2019s piece! Sent home.');
+  } else if(finished){
+    game.log.unshift(nm + ' brought a piece home! \u2728');
+  } else {
+    game.log.unshift(nm + ' rolled ' + roll + ' and moved a piece.');
+  }
+
+  var allHome = game.pieces.filter(function(p){ return p.color===color; }).every(function(p){ return p.p===57; });
+  if(allHome){
+    game.status='finished';
+    game.winner=color;
+    game.log.unshift(nm + ' wins the game! \uD83C\uDFC6');
+    game.diceRolled=false; game.dice=null; game.movable=[];
+    return;
+  }
+
+  var extra = (roll===6 || captured.length>0 || finished) && game.consecutiveSixes<3;
+  game.diceRolled=false;
+  game.dice=null;
+  game.movable=[];
+  game.justGotExtraTurn = extra;
+  if(!extra){ endTurn(game); }
+}
+
+function endTurn(game){
+  game.consecutiveSixes=0;
+  game.diceRolled=false;
+  game.dice=null;
+  game.movable=[];
+  game.justGotExtraTurn=false;
+  game.turn = (game.turn+1) % game.colors.length;
+}
+
+/* ======================================================================
+   APP STATE / NAVIGATION
+   ====================================================================== */
+var App = {
+  screen:'screen-home',
+  mode:null, // 'local' | 'online'
+  local:{ selected:new Set(['red','yellow']), names:{} },
+  online:{ roomCode:null, myColor:null, myClientId:null, isHost:false, pollHandle:null, joinedRoom:null },
+  game:null,
+  soundOn:true,
+  animating:false,
+  travelingPieceKey:null
+};
+App.online.myClientId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('c'+Math.random().toString(36).slice(2)+Date.now());
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  App.screen = id;
+}
+document.querySelectorAll('[data-back]').forEach(function(b){
+  b.addEventListener('click', function(){
+    stopPolling();
+    show(b.getAttribute('data-back'));
+  });
+});
+
+var toastTimer=null;
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+
+/* ---------- sound (tiny synth blips, no external assets) ---------- */
+var actx=null;
+function beep(freq, dur, type){
+  if(!App.soundOn) return;
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    var o = actx.createOscillator(); var g = actx.createGain();
+    o.type = type||'sine'; o.frequency.value = freq;
+    g.gain.value = .07;
+    o.connect(g); g.connect(actx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime+dur);
+    o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+function sfxRoll(){ beep(330,.12,'square'); }
+function sfxCapture(){ beep(180,.25,'sawtooth'); }
+function sfxWin(){ [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){ beep(f,.3,'sine'); }, i*120); }); }
+
+/* ======================================================================
+   BOARD RENDERING (static board built once, pieces re-rendered on change)
+   ====================================================================== */
+var boardEl = document.getElementById('board');
+function gridPlace(el, r, c, rs, cs){
+  el.style.gridRow = (r+1) + ' / span ' + (rs||1);
+  el.style.gridColumn = (c+1) + ' / span ' + (cs||1);
+}
+
+function buildBoardStatic(){
+  boardEl.innerHTML='';
+  MAIN_TRACK.forEach(function(rc, idx){
+    var d = document.createElement('div');
+    d.className = 'cell path' + (SAFE_IDX.has(idx) ? ' safe' : '');
+    gridPlace(d, rc[0], rc[1]);
+    boardEl.appendChild(d);
+  });
+  ALL_COLORS.forEach(function(color){
+    COLORS[color].home.forEach(function(rc){
+      var d = document.createElement('div');
+      d.className = 'cell home-cell';
+      d.style.background = COLORS[color].hex;
+      d.style.opacity = '.88';
+      gridPlace(d, rc[0], rc[1]);
+      boardEl.appendChild(d);
+    });
+  });
+  ALL_COLORS.forEach(function(color){
+    var rc = COLORS[color].trayCell;
+    var d = document.createElement('div');
+    d.className = 'cell hub-fill';
+    d.style.background = COLORS[color].hex;
+    d.style.opacity = '.22';
+    gridPlace(d, rc[0], rc[1]);
+    d.id = 'tray-'+color;
+    boardEl.appendChild(d);
+  });
+  var centerD = document.createElement('div');
+  centerD.className = 'cell center';
+  centerD.style.background = 'linear-gradient(135deg, var(--red), var(--yellow), var(--green), var(--blue))';
+  centerD.innerHTML = '<span class="center-badge">\u2605</span>';
+  gridPlace(centerD, 7, 7);
+  boardEl.appendChild(centerD);
+  ALL_COLORS.forEach(function(color){
+    var rc = COLORS[color].yardBox;
+    var y = document.createElement('div');
+    y.className = 'yard';
+    y.style.background = COLORS[color].hex;
+    gridPlace(y, rc[0], rc[1], 6, 6);
+    for(var i=0;i<4;i++){
+      var slot = document.createElement('div');
+      slot.className='yard-slot';
+      slot.id = 'yardslot-'+color+'-'+i;
+      y.appendChild(slot);
+    }
+    boardEl.appendChild(y);
+  });
+}
+buildBoardStatic();
+
+var stackEls = new Map();
+function clearStacks(){
+  stackEls.forEach(function(el){ el.remove(); });
+  stackEls.clear();
+}
+function getStack(r,c){
+  var key = r+'_'+c;
+  if(stackEls.has(key)) return stackEls.get(key);
+  var el = document.createElement('div');
+  el.className='cell-stack';
+  gridPlace(el, r, c);
+  boardEl.appendChild(el);
+  stackEls.set(key, el);
+  return el;
+}
+
+function makePieceDot(color, idx, movable, justMoved){
+  var d = document.createElement('div');
+  d.className = 'piece' + (movable?' movable':'') + (justMoved?' justmoved':'');
+  d.style.background = 'linear-gradient(155deg, ' + COLORS[color].hex + ', ' + COLORS[color].deep + ')';
+  d.dataset.color = color; d.dataset.idx = idx;
+  return d;
+}
+
+/* ======================================================================
+   STEP-BY-STEP "COUNTING" MOVE ANIMATION
+   ====================================================================== */
+var CELL_PCT = 100/15;
+function pct(r,c){ return { left:(c*CELL_PCT)+'%', top:(r*CELL_PCT)+'%' }; }
+var YARD_SLOT_OFFSET = [[1.3,1.3],[1.3,3.7],[3.7,1.3],[3.7,3.7]];
+function yardSlotPct(color, idx){
+  var box = COLORS[color].yardBox;
+  var off = YARD_SLOT_OFFSET[idx];
+  return pct(box[0]+off[0], box[1]+off[1]);
+}
+function posForP(color, idx, p){
+  if(p===-1) return yardSlotPct(color, idx);
+  if(p===57) return pct(7,7);
+  var rc = cellCoordFor(color, p);
+  return pct(rc[0], rc[1]);
+}
+// Build the sequence of intermediate p-values a piece hops through, oldP (exclusive) -> newP (inclusive)
+function getStepsForMove(oldP, newP){
+  var steps = [];
+  if(oldP===-1){ steps.push(0); return steps; } // single hop out of the yard
+  for(var p=oldP+1; p<=newP; p++) steps.push(p);
+  return steps;
+}
+function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+function sfxHop(i){ beep(440 + i*26, .07, 'square'); }
+
+function animateTravel(color, idx, oldP, steps){
+  return new Promise(function(resolve){
+    var wrap = document.createElement('div');
+    wrap.className = 'travel-wrap';
+    wrap.appendChild(makePieceDot(color, idx, false, false));
+    var start = posForP(color, idx, oldP);
+    wrap.style.left = start.left; wrap.style.top = start.top;
+    boardEl.appendChild(wrap);
+    void wrap.offsetWidth; // commit starting position before transitions begin
+
+    var i = 0;
+    function nextStep(){
+      if(i >= steps.length){ wrap.remove(); resolve(); return; }
+      var p = steps[i];
+      var dest = posForP(color, idx, p);
+      wrap.style.left = dest.left; wrap.style.top = dest.top;
+      wrap.classList.add('hop');
+      sfxHop(i);
+      if(steps.length>1){
+        var badge = document.createElement('div');
+        badge.className='hop-count';
+        badge.textContent = (i+1);
+        badge.style.left = dest.left; badge.style.top = dest.top;
+        boardEl.appendChild(badge);
+        setTimeout(function(){ badge.remove(); }, 520);
+      }
+      i++;
+      setTimeout(function(){
+        wrap.classList.remove('hop');
+        setTimeout(nextStep, 55);
+      }, 190);
+    }
+    setTimeout(nextStep, 20);
+  });
+}
+
+/* ======================================================================
+   RENDER: game screen (board, dice, turn banner, log)
+   ====================================================================== */
+function canActNow(){
+  if(!App.game) return false;
+  if(App.game.status!=='playing') return false;
+  if(App.mode==='local') return true;
+  var color = App.game.colors[App.game.turn];
+  return color === App.online.myColor;
+}
+
+var PIP_PATTERNS = {
+  1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
+};
+function renderDice(){
+  var diceEl = document.getElementById('dice');
+  var value = App.game && App.game.dice;
+  var pips = diceEl.querySelectorAll('.pip');
+  var active = value ? (PIP_PATTERNS[value]||[]) : [];
+  pips.forEach(function(p){
+    var i = parseInt(p.dataset.i,10);
+    p.classList.toggle('on', active.indexOf(i)!==-1);
+  });
+  var disabled = !App.game || App.game.status!=='playing' || !canActNow() || App.game.diceRolled || App.animating;
+  diceEl.classList.toggle('disabled', disabled);
+  var rollBtn = document.getElementById('btn-roll');
+  rollBtn.disabled = disabled;
+  rollBtn.textContent = (App.game && App.game.diceRolled) ? 'Choose a piece' : 'Roll Dice';
+}
+
+function renderGame(){
+  if(!App.game) return;
+  var game = App.game;
+  clearStacks();
+  ALL_COLORS.forEach(function(color){
+    for(var i=0;i<4;i++){ var s = document.getElementById('yardslot-'+color+'-'+i); if(s) s.innerHTML=''; }
+    var tray = document.getElementById('tray-'+color); if(tray) tray.innerHTML='';
+  });
+
+  var myTurnColor = game.colors[game.turn];
+  var iCanAct = canActNow() && !App.animating;
+
+  game.pieces.forEach(function(piece){
+    if(App.travelingPieceKey === (piece.color+piece.idx)) return; // shown by the traveling overlay instead
+    var movable = iCanAct && game.diceRolled && piece.color===myTurnColor && game.movable.indexOf(piece.idx)!==-1;
+    var justMoved = game.lastMove && game.lastMove.color===piece.color && game.lastMove.idx===piece.idx;
+    if(piece.p===-1){
+      var slot = document.getElementById('yardslot-'+piece.color+'-'+piece.idx);
+      if(slot) slot.appendChild(makePieceDot(piece.color, piece.idx, movable, false));
+    } else if(piece.p===57){
+      var tray = document.getElementById('tray-'+piece.color);
+      if(tray) tray.appendChild(makePieceDot(piece.color, piece.idx, false, justMoved));
+    } else {
+      var rc = cellCoordFor(piece.color, piece.p);
+      var stack = getStack(rc[0],rc[1]);
+      stack.appendChild(makePieceDot(piece.color, piece.idx, movable, justMoved));
+    }
+  });
+  stackEls.forEach(function(el){ if(el.children.length===1) el.classList.add('single'); });
+
+  document.getElementById('turn-dot').style.background = COLORS[myTurnColor].hex;
+  document.getElementById('turn-who').textContent = colorLabel(game, myTurnColor) + (App.mode==='online' && myTurnColor===App.online.myColor ? ' (You)' : '');
+
+  var what = '';
+  if(game.status==='finished'){
+    what = 'Game over';
+  } else if(App.animating){
+    what = 'Moving\u2026';
+  } else if(!canActNow()){
+    what = 'Waiting for ' + colorLabel(game, myTurnColor) + '\u2026';
+  } else if(!game.diceRolled){
+    what = 'Tap the dice to roll';
+  } else if(game.movable.length>0){
+    what = 'Choose a glowing piece to move';
+  } else {
+    what = 'No legal moves\u2026';
+  }
+  document.getElementById('turn-what').textContent = what;
+
+  var extraArea = document.getElementById('extra-tag-area');
+  extraArea.innerHTML='';
+  if(game.dice===null && game.justGotExtraTurn && game.status==='playing'){
+    var tag = document.createElement('div');
+    tag.className='extra-tag';
+    tag.textContent = '\u2728 Roll again!';
+    extraArea.appendChild(tag);
+  }
+
+  renderDice();
+  renderLog();
+
+  if(game.status==='finished'){
+    document.getElementById('gameover-color').textContent = colorLabel(game, game.winner);
+    document.getElementById('gameover-color').style.color = COLORS[game.winner].hex;
+    setTimeout(function(){ sfxWin(); show('screen-gameover'); }, 700);
+  }
+}
+
+function renderLog(){
+  var el = document.getElementById('log-lines');
+  if(!App.game){ el.innerHTML=''; return; }
+  el.innerHTML = App.game.log.slice(0,30).map(function(line){
+    return '<div class="log-line">'+line+'</div>';
+  }).join('');
+}
+
+/* ======================================================================
+   LOCAL MODE SETUP
+   ====================================================================== */
+function renderLocalSetup(){
+  var chipsEl = document.getElementById('local-color-chips');
+  chipsEl.innerHTML='';
+  ALL_COLORS.forEach(function(color){
+    var chip = document.createElement('button');
+    chip.type='button';
+    chip.className = 'color-chip' + (App.local.selected.has(color) ? ' selected':'');
+    chip.innerHTML = '<span class="dot" style="background:'+COLORS[color].hex+'"></span>'+COLORS[color].label;
+    chip.addEventListener('click', function(){
+      if(App.local.selected.has(color)){
+        if(App.local.selected.size>2) App.local.selected.delete(color);
+        else toast('Need at least 2 players');
+      } else {
+        if(App.local.selected.size<4) App.local.selected.add(color);
+      }
+      renderLocalSetup();
+    });
+    chipsEl.appendChild(chip);
+  });
+
+  var namesEl = document.getElementById('local-name-rows');
+  namesEl.innerHTML='';
+  ALL_COLORS.forEach(function(color){
+    if(!App.local.selected.has(color)) return;
+    var row = document.createElement('div');
+    row.className='player-row';
+    var dot = document.createElement('span');
+    dot.className='dot'; dot.style.background = COLORS[color].hex;
+    var input = document.createElement('input');
+    input.type='text'; input.maxLength=16;
+    input.placeholder = COLORS[color].label;
+    input.value = App.local.names[color] || '';
+    input.addEventListener('input', function(){ App.local.names[color] = input.value; });
+    row.appendChild(dot); row.appendChild(input);
+    namesEl.appendChild(row);
+  });
+}
+
+document.getElementById('btn-local').addEventListener('click', function(){
+  App.mode='local';
+  renderLocalSetup();
+  show('screen-local-setup');
+});
+
+document.getElementById('btn-local-start').addEventListener('click', function(){
+  var colors = ALL_COLORS.filter(function(c){ return App.local.selected.has(c); });
+  if(colors.length<2){ toast('Pick at least 2 players'); return; }
+  var names = {};
+  colors.forEach(function(c){ names[c] = (App.local.names[c]||'').trim() || COLORS[c].label; });
+  App.game = newGame(colors, names);
+  document.getElementById('log-card').style.display='none';
+  renderGame();
+  show('screen-game');
+});
+
+/* ======================================================================
+   ONLINE MODE: storage helpers
+   ====================================================================== */
+// Firebase Realtime Database backs online rooms. Each room is stored as JSON at
+// /ludo_rooms/{code}.json — plain REST calls, no SDK or API key needed (assumes open
+// read/write rules; lock these down later if you want real auth).
+var FIREBASE_BASE = 'https://ludogame2932-default-rtdb.asia-southeast1.firebasedatabase.app';
+function roomUrl(code){ return FIREBASE_BASE + '/ludo_rooms/' + encodeURIComponent(code) + '.json'; }
+
+function storageAvailable(){ return typeof window.fetch === 'function'; }
+
+// Pings the database so the UI can tell the player the connection is live before
+// they try to create/join a room. Resolves true/false, never throws.
+// Note: this deliberately treats ANY real HTTP response (including a 401/403
+// permission-denied) as "reachable" — a permission error still proves the
+// database itself answered. Only a genuine network failure (offline, DNS,
+// CORS block) should count as unreachable. We also probe /ludo_rooms.json rather
+// than the database root, since rules scoped to /ludo_rooms/$code (as recommended)
+// don't grant read access on the root path.
+function waitForStorage(timeoutMs){
+  if(!storageAvailable()) return Promise.resolve(false);
+  return withTimeout(fetch(FIREBASE_BASE + '/ludo_rooms.json?shallow=true'), timeoutMs)
+    .then(function(res){ return !!res; })
+    .catch(function(){ return false; });
+}
+
+var STORAGE_TIMEOUT_MS = 9000;
+function withTimeout(promise, ms){
+  return new Promise(function(resolve, reject){
+    var done = false;
+    var timer = setTimeout(function(){
+      if(!done){ done = true; reject({ timeout:true }); }
+    }, ms);
+    Promise.resolve(promise).then(
+      function(v){ if(!done){ done = true; clearTimeout(timer); resolve(v); } },
+      function(e){ if(!done){ done = true; clearTimeout(timer); reject(e); } }
+    );
+  });
+}
+
+// Always resolves (never throws). Result: {room, unavailable, timedOut, forbidden}
+async function roomGet(code){
+  if(!storageAvailable()) return { room:null, unavailable:true, timedOut:false, forbidden:false };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code)), STORAGE_TIMEOUT_MS);
+    if(res.status===401 || res.status===403){
+      console.error('Ludo: roomGet permission denied — check your Firebase Realtime Database rules allow read on /ludo_rooms/'+code);
+      return { room:null, unavailable:false, timedOut:false, forbidden:true };
+    }
+    if(!res.ok) return { room:null, unavailable:true, timedOut:false, forbidden:false };
+    var data = await res.json();
+    return { room: data || null, unavailable:false, timedOut:false, forbidden:false };
+  }catch(e){
+    if(e && e.timeout){ console.error('Ludo: roomGet timed out'); return { room:null, unavailable:false, timedOut:true, forbidden:false }; }
+    console.error('Ludo: roomGet failed', e);
+    return { room:null, unavailable:false, timedOut:false, forbidden:false };
+  }
+}
+// Always resolves (never throws). Result: {ok, unavailable, timedOut, forbidden}
+async function roomSet(code, data){
+  if(!storageAvailable()) return { ok:false, unavailable:true, timedOut:false, forbidden:false };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code), {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(data)
+    }), STORAGE_TIMEOUT_MS);
+    if(res.status===401 || res.status===403){
+      console.error('Ludo: roomSet permission denied — check your Firebase Realtime Database rules allow write on /ludo_rooms/'+code);
+      return { ok:false, unavailable:false, timedOut:false, forbidden:true };
+    }
+    return { ok: !!(res && res.ok), unavailable:false, timedOut:false, forbidden:false };
+  }catch(e){
+    if(e && e.timeout){ console.error('Ludo: roomSet timed out'); return { ok:false, unavailable:false, timedOut:true, forbidden:false }; }
+    console.error('Ludo: roomSet failed', e);
+    return { ok:false, unavailable:false, timedOut:false, forbidden:false };
+  }
+}
+
+function randCode(){
+  var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  var out='';
+  for(var i=0;i<5;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+function stopPolling(){
+  if(App.online.pollHandle){ clearInterval(App.online.pollHandle); App.online.pollHandle=null; }
+}
+
+/* ======================================================================
+   ONLINE MODE: create room
+   ====================================================================== */
+var createState = { color:'red', seats:4 };
+
+function renderCreateColorChips(){
+  var el = document.getElementById('create-color-chips');
+  el.innerHTML='';
+  ALL_COLORS.forEach(function(color){
+    var chip = document.createElement('button');
+    chip.type='button';
+    chip.className='color-chip' + (createState.color===color?' selected':'');
+    chip.innerHTML = '<span class="dot" style="background:'+COLORS[color].hex+'"></span>'+COLORS[color].label;
+    chip.addEventListener('click', function(){ createState.color=color; renderCreateColorChips(); });
+    el.appendChild(chip);
+  });
+}
+document.getElementById('create-seats-minus').addEventListener('click', function(){
+  if(createState.seats>2){ createState.seats--; document.getElementById('create-seats-count').textContent = createState.seats; }
+});
+document.getElementById('create-seats-plus').addEventListener('click', function(){
+  if(createState.seats<4){ createState.seats++; document.getElementById('create-seats-count').textContent = createState.seats; }
+});
+
+var onlineCheckFailCount = 0;
+
+document.getElementById('btn-online').addEventListener('click', function(){
+  show('screen-online-menu');
+  checkOnlineAvailability();
+});
+
+function checkOnlineAvailability(){
+  var banner = document.getElementById('online-status-banner');
+
+  var showCheckingTimer = setTimeout(function(){
+    banner.style.display='flex';
+    banner.className = 'status-banner checking';
+    banner.textContent = 'Checking online play availability\u2026';
+  }, 350);
+  waitForStorage(3500).then(function(available){
+    clearTimeout(showCheckingTimer);
+    if(available){
+      banner.style.display='none';
+      onlineCheckFailCount = 0;
+      return;
+    }
+    onlineCheckFailCount++;
+    banner.style.display='flex';
+    banner.className = 'status-banner warn';
+    if(onlineCheckFailCount>=2){
+      banner.innerHTML = "Still can't reach the online server. Check your internet connection, or the database may be unreachable right now. <span class=\"retry-link\" id=\"online-retry-link\">Check again</span>";
+    } else {
+      banner.innerHTML = "Online play isn't responding right now \u2014 this sometimes clears up after a few seconds. <span class=\"retry-link\" id=\"online-retry-link\">Check again</span>";
+    }
+    var retryLink = document.getElementById('online-retry-link');
+    if(retryLink) retryLink.addEventListener('click', checkOnlineAvailability);
+  });
+}
+document.getElementById('btn-create-room').addEventListener('click', function(){
+  renderCreateColorChips();
+  document.getElementById('create-seats-count').textContent = createState.seats;
+  show('screen-create');
+});
+document.getElementById('btn-join-room').addEventListener('click', function(){ show('screen-join'); });
+
+document.getElementById('btn-create-confirm').addEventListener('click', async function(){
+  var btn = document.getElementById('btn-create-confirm');
+  btn.disabled = true; btn.textContent='Connecting\u2026';
+  var available = await waitForStorage(4000);
+  if(!available){
+    btn.disabled = false; btn.textContent='Create Room';
+    toast("Online play isn't available right now \u2014 try again in a moment");
+    return;
+  }
+  btn.textContent='Creating\u2026';
+  var name = (document.getElementById('create-name').value||'').trim() || COLORS[createState.color].label;
+  var code = randCode();
+  var room = {
+    code: code,
+    hostClientId: App.online.myClientId,
+    maxPlayers: createState.seats,
+    seats: [{ color: createState.color, clientId: App.online.myClientId, name: name }],
+    status: 'lobby',
+    game: null,
+    version: 1,
+    updatedAt: Date.now()
+  };
+  roomSet(code, room).then(function(res){
+    btn.disabled=false; btn.textContent='Create Room';
+    if(!res.ok){
+      if(res.timedOut) toast('Connection is slow right now \u2014 please try again');
+      else if(res.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
+      else toast('Could not create room \u2014 try again');
+      return;
+    }
+    App.mode='online';
+    App.online.roomCode = code;
+    App.online.myColor = createState.color;
+    App.online.isHost = true;
+    enterLobby();
+  }).catch(function(e){
+    console.error('Ludo: create room error', e);
+    btn.disabled=false; btn.textContent='Create Room';
+    toast('Could not create room \u2014 try again');
+  });
+});
+
+/* ======================================================================
+   ONLINE MODE: join room
+   ====================================================================== */
+var joinState = { code:null, color:null, room:null };
+
+document.getElementById('join-code').addEventListener('input', function(e){
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+});
+
+document.getElementById('btn-join-check').addEventListener('click', async function(){
+  var code = document.getElementById('join-code').value.trim();
+  var statusEl = document.getElementById('join-status');
+  if(code.length<4){ statusEl.textContent='Enter the 5-character room code.'; return; }
+  var checkBtn = document.getElementById('btn-join-check');
+  checkBtn.disabled = true;
+  statusEl.textContent = 'Connecting\u2026';
+  var available = await waitForStorage(4000);
+  if(!available){
+    checkBtn.disabled = false;
+    statusEl.textContent = "Online play isn't available right now \u2014 try again in a moment.";
+    return;
+  }
+  statusEl.textContent = 'Looking for room\u2026';
+  document.getElementById('join-color-section').style.display='none';
+  document.getElementById('btn-join-confirm').style.display='none';
+  roomGet(code).then(function(res){
+    checkBtn.disabled = false;
+    if(res.timedOut){ statusEl.textContent = 'Connection is slow right now \u2014 check your internet and try again.'; return; }
+    if(res.forbidden){ statusEl.textContent = 'Database rejected the lookup \u2014 check your Firebase rules allow read access to /ludo_rooms.'; return; }
+    var room = res.room;
+    if(!room){ statusEl.textContent = 'No room found with that code.'; return; }
+    if(room.status!=='lobby'){ statusEl.textContent = 'That game has already started.'; return; }
+    var taken = new Set(room.seats.map(function(s){ return s.color; }));
+    var free = ALL_COLORS.filter(function(c){ return !taken.has(c); });
+    if(room.seats.length>=room.maxPlayers || free.length===0){ statusEl.textContent = 'That room is full.'; return; }
+    joinState.code = code; joinState.room = room;
+    joinState.color = free[0];
+    statusEl.textContent = (room.seats.length)+' of '+room.maxPlayers+' seats taken. Pick a color and join in!';
+    renderJoinColorChips(free);
+    document.getElementById('join-color-section').style.display='block';
+    document.getElementById('btn-join-confirm').style.display='flex';
+  }).catch(function(e){
+    checkBtn.disabled = false;
+    console.error('Ludo: join check error', e);
+    statusEl.textContent = 'Something went wrong looking up that room \u2014 try again.';
+  });
+});
+
+function renderJoinColorChips(freeColors){
+  var el = document.getElementById('join-color-chips');
+  el.innerHTML='';
+  freeColors.forEach(function(color){
+    var chip = document.createElement('button');
+    chip.type='button';
+    chip.className='color-chip' + (joinState.color===color?' selected':'');
+    chip.innerHTML = '<span class="dot" style="background:'+COLORS[color].hex+'"></span>'+COLORS[color].label;
+    chip.addEventListener('click', function(){ joinState.color=color; renderJoinColorChips(freeColors); });
+    el.appendChild(chip);
+  });
+}
+
+document.getElementById('btn-join-confirm').addEventListener('click', async function(){
+  var btn = document.getElementById('btn-join-confirm');
+  btn.disabled=true; btn.textContent='Joining\u2026';
+  var available = await waitForStorage(4000);
+  if(!available){
+    btn.disabled=false; btn.textContent='Join Room';
+    toast("Online play isn't available right now \u2014 try again in a moment");
+    return;
+  }
+  var name = (document.getElementById('join-name').value||'').trim() || COLORS[joinState.color].label;
+  roomGet(joinState.code).then(function(res){
+    if(res.timedOut){ btn.disabled=false; btn.textContent='Join Room'; toast('Connection is slow right now \u2014 try again'); return; }
+    var room = res.room;
+    if(!room){ btn.disabled=false; btn.textContent='Join Room'; toast('Room no longer exists'); return; }
+    if(room.status!=='lobby'){ btn.disabled=false; btn.textContent='Join Room'; toast('That game already started'); return; }
+    var taken = new Set(room.seats.map(function(s){ return s.color; }));
+    if(taken.has(joinState.color)){ btn.disabled=false; btn.textContent='Join Room'; toast('That color was just taken \u2014 pick another'); document.getElementById('btn-join-check').click(); return; }
+    if(room.seats.length>=room.maxPlayers){ btn.disabled=false; btn.textContent='Join Room'; toast('Room just filled up'); return; }
+    room.seats.push({ color: joinState.color, clientId: App.online.myClientId, name: name });
+    room.version = (room.version||0)+1;
+    room.updatedAt = Date.now();
+    roomSet(joinState.code, room).then(function(setRes){
+      btn.disabled=false; btn.textContent='Join Room';
+      if(!setRes.ok){
+        if(setRes.timedOut) toast('Connection is slow right now \u2014 try again');
+        else if(setRes.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
+        else toast('Could not join \u2014 try again');
+        return;
+      }
+      App.mode='online';
+      App.online.roomCode = joinState.code;
+      App.online.myColor = joinState.color;
+      App.online.isHost = false;
+      enterLobby();
+    });
+  }).catch(function(e){
+    console.error('Ludo: join confirm error', e);
+    btn.disabled=false; btn.textContent='Join Room';
+    toast('Could not join \u2014 try again');
+  });
+});
+
+/* ======================================================================
+   ONLINE MODE: lobby
+   ====================================================================== */
+function enterLobby(){
+  document.getElementById('lobby-code').textContent = App.online.roomCode;
+  show('screen-lobby');
+  pollLobbyOnce();
+  stopPolling();
+  App.online.pollHandle = setInterval(pollLobbyOnce, 2000);
+}
+
+function pollLobbyOnce(){
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable) return; // transient — just try again next tick
+    var room = res.room;
+    if(!room){ toast('Room closed'); stopPolling(); show('screen-home'); return; }
+    if(room.status==='playing' || room.status==='finished'){
+      stopPolling();
+      App.game = room.game;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 1500);
+      return;
+    }
+    renderLobbySeats(room);
+  });
+}
+
+function renderLobbySeats(room){
+  var el = document.getElementById('lobby-seats');
+  el.innerHTML='';
+  for(var i=0;i<room.maxPlayers;i++){
+    var seat = room.seats[i];
+    var div = document.createElement('div');
+    if(seat){
+      div.className='seat';
+      var mine = seat.clientId===App.online.myClientId;
+      div.innerHTML = '<span class="dot" style="background:'+COLORS[seat.color].hex+'"></span>'+
+        '<span class="nm">'+escapeHtml(seat.name)+'</span>' + (mine?'<span class="you">YOU</span>':'');
+    } else {
+      div.className='seat empty';
+      div.innerHTML = '<span class="dot" style="background:rgba(255,255,255,.15)"></span><span class="nm">Open seat</span>';
+    }
+    el.appendChild(div);
+  }
+  var hostArea = document.getElementById('lobby-host-area');
+  var guestArea = document.getElementById('lobby-guest-area');
+  if(App.online.isHost){
+    guestArea.style.display='none';
+    hostArea.style.display='block';
+    var canStart = room.seats.length>=2;
+    hostArea.innerHTML = '';
+    var btn = document.createElement('button');
+    btn.className='btn btn-primary btn-block';
+    btn.textContent = canStart ? 'Start Game' : 'Need at least 2 players';
+    btn.disabled = !canStart;
+    btn.addEventListener('click', function(){ startOnlineGame(room); });
+    hostArea.appendChild(btn);
+  } else {
+    hostArea.style.display='none';
+    guestArea.style.display='flex';
+  }
+}
+
+function startOnlineGame(room){
+  var colors = room.seats.map(function(s){ return s.color; });
+  var names = {};
+  room.seats.forEach(function(s){ names[s.color] = s.name; });
+  var game = newGame(colors, names);
+  room.status='playing';
+  room.game = game;
+  room.version = (room.version||0)+1;
+  roomSet(room.code, room).then(function(res){
+    if(!res.ok){
+      if(res.timedOut) toast('Connection is slow right now \u2014 try again');
+      else if(res.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
+      else toast('Could not start game \u2014 try again');
+      return;
+    }
+    stopPolling();
+    App.game = game;
+    document.getElementById('log-card').style.display='none';
+    renderGame();
+    show('screen-game');
+    App.online.pollHandle = setInterval(pollGameOnce, 1500);
+  }).catch(function(e){
+    console.error('Ludo: start game error', e);
+    toast('Could not start game \u2014 try again');
+  });
+}
+
+function escapeHtml(s){
+  var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+document.getElementById('btn-copy-code').addEventListener('click', function(){
+  var msg = 'Join my Ludo game! Open the app link I sent you, tap "Play online with friends" \u2192 "Join a room", and enter code: ' + App.online.roomCode;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(msg).then(function(){ toast('Invite message copied'); }).catch(function(){ toast(App.online.roomCode); });
+  } else {
+    toast('Room code: ' + App.online.roomCode);
+  }
+});
+
+document.getElementById('lobby-back').addEventListener('click', function(){
+  stopPolling();
+  App.mode=null;
+  show('screen-online-menu');
+});
+
+/* ======================================================================
+   ONLINE MODE: in-game sync
+   ====================================================================== */
+var onlineWriting = false;
+
+function pollGameOnce(){
+  if(onlineWriting || App.animating) return;
+  if(App.screen!=='screen-game' && App.screen!=='screen-gameover') return;
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable) return; // transient — try again next tick
+    var room = res.room;
+    if(!room || !room.game) return;
+    if(onlineWriting || App.animating) return;
+    var prev = App.game;
+    var incoming = room.game;
+    var animated = tryAnimateIncomingMove(prev, incoming);
+    if(!animated){
+      App.game = incoming;
+      if(App.screen==='screen-game') renderGame();
+    }
+  });
+}
+
+// If the incoming synced state shows a single piece advanced from where we last saw it
+// (i.e. an opponent just moved), hop it into place the same way local moves animate.
+// Anything unexpected (first sync, big jump, mismatch) just falls back to a plain snap.
+function tryAnimateIncomingMove(prev, incoming){
+  try{
+    if(!prev || !incoming.lastMove) return false;
+    var mv = incoming.lastMove;
+    if(prev.lastMove && prev.lastMove.color===mv.color && prev.lastMove.idx===mv.idx){
+      var prevP = findPiece(prev, mv.color, mv.idx);
+      var newP = findPiece(incoming, mv.color, mv.idx);
+      if(prevP && newP && prevP.p===newP.p) return false; // already showing this move
+    }
+    var prevPiece = findPiece(prev, mv.color, mv.idx);
+    var newPiece = findPiece(incoming, mv.color, mv.idx);
+    if(!prevPiece || !newPiece) return false;
+    var oldP = prevPiece.p, newP2 = newPiece.p;
+    if(oldP===newP2) return false;
+    if(!(oldP===-1 || (newP2>oldP && newP2<=57))) return false;
+    var steps = getStepsForMove(oldP, newP2);
+    App.animating = true;
+    App.travelingPieceKey = mv.color+mv.idx;
+    App.game = incoming;
+    renderGame();
+    animateTravel(mv.color, mv.idx, oldP, steps).then(function(){
+      App.animating = false;
+      App.travelingPieceKey = null;
+      renderGame();
+    });
+    return true;
+  }catch(e){ return false; }
+}
+
+function syncPushGame(){
+  if(App.mode!=='online') return Promise.resolve(true);
+  onlineWriting = true;
+  return roomGet(App.online.roomCode).then(function(res){
+    if(!res.room) return { ok:false };
+    var room = res.room;
+    room.game = App.game;
+    room.status = App.game.status==='finished' ? 'finished' : 'playing';
+    room.version = (room.version||0)+1;
+    room.updatedAt = Date.now();
+    return roomSet(App.online.roomCode, room);
+  }).then(function(res){
+    onlineWriting = false;
+    return !!(res && res.ok);
+  }).catch(function(){ onlineWriting=false; return false; });
+}
+
+/* ======================================================================
+   GAME ACTIONS (shared by local + online)
+   ====================================================================== */
+function handleRollClick(){
+  if(!App.game || App.game.status!=='playing') return;
+  if(App.animating) return;
+  if(!canActNow()){ toast("It's not your turn"); return; }
+  if(App.game.diceRolled) return;
+  var diceEl = document.getElementById('dice');
+  diceEl.classList.remove('rolling'); void diceEl.offsetWidth; diceEl.classList.add('rolling');
+  sfxRoll();
+  engineRoll(App.game);
+  renderGame();
+  if(App.mode==='online') syncPushGame();
+}
+
+function handleMovePiece(color, idx){
+  if(!App.game || App.game.status!=='playing') return;
+  if(App.animating) return;
+  if(!canActNow()) return;
+  if(color !== App.game.colors[App.game.turn]) return;
+  if(App.game.movable.indexOf(idx)===-1) return;
+
+  var piece = findPiece(App.game, color, idx);
+  var oldP = piece.p;
+  var roll = App.game.dice;
+  var newP = (oldP===-1) ? 0 : oldP+roll;
+  var steps = getStepsForMove(oldP, newP);
+
+  App.animating = true;
+  App.travelingPieceKey = color+idx;
+  renderGame();
+
+  animateTravel(color, idx, oldP, steps).then(function(){
+    App.animating = false;
+    App.travelingPieceKey = null;
+    engineMove(App.game, idx);
+    var captureHappened = App.game.log[0] && App.game.log[0].indexOf('captured')!==-1;
+    if(captureHappened) sfxCapture();
+    renderGame();
+    if(App.mode==='online') syncPushGame();
+  });
+}
+
+boardEl.addEventListener('click', function(e){
+  var pieceEl = e.target.closest('.piece.movable');
+  if(!pieceEl) return;
+  var color = pieceEl.dataset.color;
+  var idx = parseInt(pieceEl.dataset.idx, 10);
+  handleMovePiece(color, idx);
+});
+
+document.getElementById('dice').addEventListener('click', handleRollClick);
+document.getElementById('btn-roll').addEventListener('click', handleRollClick);
+
+document.getElementById('btn-log-toggle').addEventListener('click', function(){
+  var card = document.getElementById('log-card');
+  card.style.display = (card.style.display==='none' || !card.style.display) ? 'block' : 'none';
+});
+
+document.getElementById('btn-leave-game').addEventListener('click', function(){
+  stopPolling();
+  App.game = null;
+  App.mode = null;
+  show('screen-home');
+});
+
+document.getElementById('btn-gameover-home').addEventListener('click', function(){
+  stopPolling();
+  App.game = null;
+  App.mode = null;
+  show('screen-home');
+});
+
+document.getElementById('btn-play-again').addEventListener('click', function(){
+  if(App.mode==='online'){
+    toast('Start a new room from the home screen to play again');
+    stopPolling();
+    App.game=null; App.mode=null;
+    show('screen-home');
+    return;
+  }
+  var colors = App.game.colors.slice();
+  var names = App.game.names;
+  App.game = newGame(colors, names);
+  document.getElementById('log-card').style.display='none';
+  renderGame();
+  show('screen-game');
+});
+
+/* ======================================================================
+   INIT
+   ====================================================================== */
+show('screen-home');
+
+})();
+</script>
+</body>
+</html>
