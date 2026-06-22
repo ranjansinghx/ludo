@@ -1393,8 +1393,8 @@ function enterLobby(){
   show('screen-lobby');
   _stopLobbyLoop();
   stopPolling();
-  _runLobbyPoll();                                     // fire immediately
-  _lobbyPollTimer = setInterval(_runLobbyPoll, 500);  // then every 500 ms
+  _runLobbyPoll();                                      // fire immediately
+  _lobbyPollTimer = setInterval(_runLobbyPoll, 800);   // then every 800 ms
 }
 
 // Re-poll the instant the page becomes visible (tab switch, phone unlock, etc.)
@@ -1424,15 +1424,22 @@ function _runLobbyPoll(){
     var room = res.room;
     if(!room){ _dbg('room is null/missing'); _stopLobbyLoop(); toast('Room closed'); show('screen-home'); return; }
     _dbg('status=' + room.status + ' seats=' + (room.seats ? room.seats.length : '?') + ' game=' + (room.game ? 'yes' : 'no'));
-    // Start if status says playing OR if game object exists (belt+suspenders)
-    if(room.status === 'playing' || room.status === 'finished' || (room.game && room.game.status === 'playing')){
+    var gameStarted = room.status === 'playing'
+      || room.status === 'finished'
+      || (room.game && room.game.status === 'playing')
+      || (room.game && room.game.status === 'finished')
+      || (room.game && Array.isArray(room.game.colors) && room.game.colors.length >= 2);
+    if(gameStarted && room.game){
       _dbg('STARTING GAME NOW status=' + room.status);
       _stopLobbyLoop();
       App.game = room.game;
+      if(App.online.myColor && room.game.colors.indexOf(App.online.myColor) === -1){
+        App.online.myColor = room.game.colors[0];
+      }
       document.getElementById('log-card').style.display = 'none';
       renderGame();
       show('screen-game');
-      App.online.pollHandle = setInterval(pollGameOnce, 1500);
+      App.online.pollHandle = setInterval(pollGameOnce, 800);
       return;
     }
     renderLobbySeats(room);
@@ -1500,7 +1507,7 @@ function startOnlineGame(roomSnapshot){
       App.game = room.game;
       document.getElementById('log-card').style.display='none';
       renderGame(); show('screen-game');
-      App.online.pollHandle = setInterval(pollGameOnce, 1500);
+      App.online.pollHandle = setInterval(pollGameOnce, 800);
       return;
     }
     var colors = room.seats.map(function(s){ return s.color; });
@@ -1530,7 +1537,7 @@ function startOnlineGame(roomSnapshot){
       App.game = game;
       document.getElementById('log-card').style.display='none';
       renderGame(); show('screen-game');
-      App.online.pollHandle = setInterval(pollGameOnce, 1500);
+      App.online.pollHandle = setInterval(pollGameOnce, 800);
     }).catch(function(e){
       if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
       toast('Write error: ' + (e && e.message ? e.message : String(e)));
