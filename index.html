@@ -1388,6 +1388,19 @@ function _stopLobbyLoop(){
 // keep old names so nothing else breaks
 function stopLobbySSE(){ /* no-op — SSE removed */ }
 
+
+function sanitizeGame(game){
+  if(!game) return game;
+  if(!Array.isArray(game.log)) game.log = [];
+  if(!Array.isArray(game.pieces)) game.pieces = [];
+  if(!Array.isArray(game.colors)) game.colors = [];
+  if(!Array.isArray(game.movable)) game.movable = [];
+  if(typeof game.names !== 'object' || game.names === null) game.names = {};
+  if(typeof game.turn !== 'number') game.turn = 0;
+  if(typeof game.status !== 'string') game.status = 'playing';
+  return game;
+}
+
 function enterLobby(){
   document.getElementById('lobby-code').textContent = App.online.roomCode;
   show('screen-lobby');
@@ -1432,7 +1445,7 @@ function _runLobbyPoll(){
     if(gameStarted && room.game){
       _dbg('STARTING GAME NOW status=' + room.status);
       _stopLobbyLoop();
-      App.game = room.game;
+      App.game = sanitizeGame(room.game);
       if(App.online.myColor && room.game.colors.indexOf(App.online.myColor) === -1){
         App.online.myColor = room.game.colors[0];
       }
@@ -1504,7 +1517,7 @@ function startOnlineGame(roomSnapshot){
     if(room.status !== 'lobby'){
       // Already started somehow
       _stopLobbyLoop(); stopPolling();
-      App.game = room.game;
+      App.game = sanitizeGame(room.game);
       document.getElementById('log-card').style.display='none';
       renderGame(); show('screen-game');
       App.online.pollHandle = setInterval(pollGameOnce, 800);
@@ -1582,7 +1595,7 @@ function pollGameOnce(){
     if(!room || !room.game) return;
     if(onlineWriting || App.animating) return;
     var prev = App.game;
-    var incoming = room.game;
+    var incoming = sanitizeGame(room.game);
     var animated = tryAnimateIncomingMove(prev, incoming);
     if(!animated){
       App.game = incoming;
