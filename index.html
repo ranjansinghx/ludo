@@ -560,8 +560,7 @@ function newGame(colorList, names){
     status: 'playing',
     winner: null,
     lastMove: null,
-    justGotExtraTurn: false,
-    firstRollDone: false
+    justGotExtraTurn: false
   };
 }
 
@@ -589,13 +588,7 @@ function colorLabel(game, color){ return (game.names && game.names[color]) || CO
 function engineRoll(game){
   if(game.status!=='playing') return;
   if(game.diceRolled) return;
-  var roll;
-  if(!game.firstRollDone){
-    roll = 6;
-    game.firstRollDone = true;
-  } else {
-    roll = 1+Math.floor(Math.random()*6);
-  }
+  var roll = 1+Math.floor(Math.random()*6);
   game.dice = roll;
   game.diceRolled = true;
   game.consecutiveSixes = (roll===6) ? game.consecutiveSixes+1 : 0;
@@ -666,7 +659,7 @@ function engineMove(game, pieceIdx){
   game.dice=null;
   game.movable=[];
   game.justGotExtraTurn = extra;
-  if(!extra){ endTurn(game); }
+  if(!extra){ endTurn(game); } else { game.consecutiveSixes = (roll===6) ? game.consecutiveSixes : 0; }
 }
 
 function endTurn(game){
@@ -1247,7 +1240,7 @@ document.getElementById('btn-create-confirm').addEventListener('click', async fu
     version: 1,
     updatedAt: Date.now()
   };
-  roomSet(code, room).then(function(res){
+  roomPut(code, room).then(function(res){
     btn.disabled=false; btn.textContent='Create Room';
     if(!res.ok){
       if(res.timedOut) toast('Connection is slow right now \u2014 please try again');
@@ -1279,7 +1272,7 @@ document.getElementById('join-code').addEventListener('input', function(e){
 document.getElementById('btn-join-check').addEventListener('click', async function(){
   var code = document.getElementById('join-code').value.trim();
   var statusEl = document.getElementById('join-status');
-  if(code.length<4){ statusEl.textContent='Enter the 5-character room code.'; return; }
+  if(code.length<5){ statusEl.textContent='Enter the 5-character room code.'; return; }
   var checkBtn = document.getElementById('btn-join-check');
   checkBtn.disabled = true;
   statusEl.textContent = 'Connecting\u2026';
@@ -1617,9 +1610,9 @@ function tryAnimateIncomingMove(prev, incoming){
       if(prevP && newP && prevP.p===newP.p) return false; // already showing this move
     }
     var prevPiece = findPiece(prev, mv.color, mv.idx);
-    var newPiece = findPiece(incoming, mv.color, mv.idx);
-    if(!prevPiece || !newPiece) return false;
-    var oldP = prevPiece.p, newP2 = newPiece.p;
+    var newPiece2 = findPiece(incoming, mv.color, mv.idx);
+    if(!prevPiece || !newPiece2) return false;
+    var oldP = prevPiece.p, newP2 = newPiece2.p;
     if(oldP===newP2) return false;
     if(!(oldP===-1 || (newP2>oldP && newP2<=57))) return false;
     var steps = getStepsForMove(oldP, newP2);
