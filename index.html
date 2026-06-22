@@ -1051,7 +1051,7 @@ document.getElementById('btn-local-start').addEventListener('click', function(){
 // Firebase Realtime Database backs online rooms. Each room is stored as JSON at
 // /ludo_rooms/{code}.json — plain REST calls, no SDK or API key needed (assumes open
 // read/write rules; lock these down later if you want real auth).
-var FIREBASE_BASE = 'https://ludogame2932-default-rtdb.asia-southeast1.firebasedatabase.app';
+var FIREBASE_BASE = 'https://ludo-72e8c-default-rtdb.asia-southeast1.firebasedatabase.app';
 function roomUrl(code){ return FIREBASE_BASE + '/ludo_rooms/' + encodeURIComponent(code) + '.json'; }
 
 function storageAvailable(){ return typeof window.fetch === 'function'; }
