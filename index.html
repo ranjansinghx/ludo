@@ -210,7 +210,7 @@ input.code-input{
   border-radius:18px; padding:9px; box-shadow:var(--shadow-deep);
 }
 .board{
-  width:100%; aspect-ratio:1/1; background:var(--board); border-radius:10px; overflow:hidden;
+  width:100%; aspect-ratio:1/1; background:var(--board); border-radius:10px; overflow:visible;
   display:grid; grid-template-columns:repeat(15,1fr); grid-template-rows:repeat(15,1fr);
   position:relative; box-shadow: inset 0 0 0 2px var(--board-line);
 }
@@ -223,6 +223,7 @@ input.code-input{
 .yard{
   border-radius:14px; position:relative; padding:10%;
   display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:8%;
+  z-index:10;
 }
 .yard::before{
   content:""; position:absolute; inset:8%; background:rgba(255,255,255,.88); border-radius:12px;
@@ -231,16 +232,17 @@ input.code-input{
 .yard-slot{
   position:relative; z-index:1; border-radius:50%; background:rgba(0,0,0,.07);
   display:flex; align-items:center; justify-content:center;
+  overflow:visible;
 }
 .piece{
   width:78%; aspect-ratio:1/1; border-radius:50%;
   box-shadow: 0 2px 0 rgba(0,0,0,.3), inset 0 -3px 4px rgba(0,0,0,.25), inset 0 2px 2px rgba(255,255,255,.35);
   display:flex; align-items:center; justify-content:center;
-  position:relative;
+  position:relative; z-index:1;
 }
-.piece.movable{ animation: piecePulse 1s ease infinite; cursor:pointer; }
+.piece.movable{ animation: piecePulse 700ms ease infinite; cursor:pointer; z-index:20; touch-action:manipulation; }
 .piece.justmoved{ animation: piecePop .35s ease; }
-@keyframes piecePulse{0%,100%{transform:scale(1); filter:brightness(1);} 50%{transform:scale(1.15); filter:brightness(1.3);}}
+@keyframes piecePulse{0%,100%{transform:scale(1); filter:brightness(1) drop-shadow(0 0 3px currentColor);} 50%{transform:scale(1.12); filter:brightness(1.35) drop-shadow(0 0 6px currentColor);}}
 @keyframes piecePop{0%{transform:scale(.4);} 60%{transform:scale(1.25);} 100%{transform:scale(1);}}
 .travel-wrap{
   position:absolute;
@@ -257,7 +259,8 @@ input.code-input{
   font-family:var(--font-display); font-weight:700; font-size:11px; color:#3a2705;
   background:linear-gradient(180deg,#ffe49b,#e7b53e); border-radius:50%;
   width:15px; height:15px; display:flex; align-items:center; justify-content:center;
-  transform:translate(40%,-55%); box-shadow:0 2px 4px rgba(0,0,0,.35);
+  margin-left:4px; margin-top:-4px;
+  box-shadow:0 2px 4px rgba(0,0,0,.35);
   animation: countPop .5s ease forwards;
 }
 @keyframes countPop{0%{opacity:0; transform:translate(40%,-30%) scale(.5);} 25%{opacity:1; transform:translate(40%,-55%) scale(1.1);} 75%{opacity:1;} 100%{opacity:0; transform:translate(40%,-75%) scale(.9);}}
@@ -659,7 +662,13 @@ function engineMove(game, pieceIdx){
   game.dice=null;
   game.movable=[];
   game.justGotExtraTurn = extra;
-  if(!extra){ endTurn(game); } else { game.consecutiveSixes = (roll===6) ? game.consecutiveSixes : 0; }
+  if(!extra){
+    endTurn(game);
+  } else {
+    // Only keep the six-streak going if the extra turn came from rolling a 6;
+    // captures and finishing pieces break the streak.
+    if(roll!==6) game.consecutiveSixes = 0;
+  }
 }
 
 function endTurn(game){
@@ -807,6 +816,11 @@ function makePieceDot(color, idx, movable, justMoved){
   d.className = 'piece' + (movable?' movable':'') + (justMoved?' justmoved':'');
   d.style.background = 'linear-gradient(155deg, ' + COLORS[color].hex + ', ' + COLORS[color].deep + ')';
   d.dataset.color = color; d.dataset.idx = idx;
+  if(movable){
+    // Sync all pieces to the same global pulse phase so they all blink in unison
+    var phase = -(Date.now() % 700) / 1000;
+    d.style.animationDelay = phase + 's';
+  }
   return d;
 }
 
@@ -834,8 +848,6 @@ function getStepsForMove(oldP, newP){
   for(var p=oldP+1; p<=newP; p++) steps.push(p);
   return steps;
 }
-function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
-
 function sfxHop(i){ beep(440 + i*26, .07, 'square'); }
 
 function animateTravel(color, idx, oldP, steps){
@@ -860,8 +872,7 @@ function animateTravel(color, idx, oldP, steps){
         var badge = document.createElement('div');
         badge.className='hop-count';
         badge.textContent = (i+1);
-        badge.style.left = dest.left; badge.style.top = dest.top;
-        boardEl.appendChild(badge);
+        wrap.appendChild(badge);
         setTimeout(function(){ badge.remove(); }, 520);
       }
       i++;
@@ -1604,15 +1615,11 @@ function tryAnimateIncomingMove(prev, incoming){
   try{
     if(!prev || !incoming.lastMove) return false;
     var mv = incoming.lastMove;
-    if(prev.lastMove && prev.lastMove.color===mv.color && prev.lastMove.idx===mv.idx){
-      var prevP = findPiece(prev, mv.color, mv.idx);
-      var newP = findPiece(incoming, mv.color, mv.idx);
-      if(prevP && newP && prevP.p===newP.p) return false; // already showing this move
-    }
     var prevPiece = findPiece(prev, mv.color, mv.idx);
     var newPiece2 = findPiece(incoming, mv.color, mv.idx);
     if(!prevPiece || !newPiece2) return false;
     var oldP = prevPiece.p, newP2 = newPiece2.p;
+    // If piece hasn't actually moved, nothing to animate
     if(oldP===newP2) return false;
     if(!(oldP===-1 || (newP2>oldP && newP2<=57))) return false;
     var steps = getStepsForMove(oldP, newP2);
