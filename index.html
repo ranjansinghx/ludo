@@ -247,10 +247,10 @@ input.code-input{
   width:6.6667%; height:6.6667%;
   display:flex; align-items:center; justify-content:center;
   z-index:40; pointer-events:none;
-  transition: left .19s cubic-bezier(.45,0,.2,1), top .19s cubic-bezier(.45,0,.2,1);
+  transition: left .05s cubic-bezier(.45,0,.2,1), top .05s cubic-bezier(.45,0,.2,1);
 }
 .travel-wrap .piece{ width:76%; }
-.travel-wrap.hop .piece{ animation: pieceHop .19s ease; }
+.travel-wrap.hop .piece{ animation: pieceHop .05s ease; }
 @keyframes pieceHop{ 0%{transform:scale(1) translateY(0);} 45%{transform:scale(1.28) translateY(-22%);} 100%{transform:scale(1) translateY(0);} }
 .hop-count{
   position:absolute; z-index:41; pointer-events:none;
@@ -867,8 +867,8 @@ function animateTravel(color, idx, oldP, steps){
       i++;
       setTimeout(function(){
         wrap.classList.remove('hop');
-        setTimeout(nextStep, 55);
-      }, 190);
+        setTimeout(nextStep, 10);
+      }, 50);
     }
     setTimeout(nextStep, 20);
   });
