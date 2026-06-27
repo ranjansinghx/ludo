@@ -240,9 +240,9 @@ input.code-input{
   display:flex; align-items:center; justify-content:center;
   position:relative; z-index:1;
 }
-.piece.movable{ animation: piecePulse 700ms ease infinite; cursor:pointer; z-index:20; touch-action:manipulation; }
+.piece.movable{ cursor:pointer; z-index:20; touch-action:manipulation; }
+.piece.movable::after{ content:''; position:absolute; inset:-8px; border-radius:50%; }
 .piece.justmoved{ animation: piecePop .35s ease; }
-@keyframes piecePulse{0%,100%{transform:scale(1); filter:brightness(1) drop-shadow(0 0 3px currentColor);} 50%{transform:scale(1.12); filter:brightness(1.35) drop-shadow(0 0 6px currentColor);}}
 @keyframes piecePop{0%{transform:scale(.4);} 60%{transform:scale(1.25);} 100%{transform:scale(1);}}
 .travel-wrap{
   position:absolute;
@@ -816,11 +816,7 @@ function makePieceDot(color, idx, movable, justMoved){
   d.className = 'piece' + (movable?' movable':'') + (justMoved?' justmoved':'');
   d.style.background = 'linear-gradient(155deg, ' + COLORS[color].hex + ', ' + COLORS[color].deep + ')';
   d.dataset.color = color; d.dataset.idx = idx;
-  if(movable){
-    // Sync all pieces to the same global pulse phase so they all blink in unison
-    var phase = -(Date.now() % 700) / 1000;
-    d.style.animationDelay = phase + 's';
-  }
+
   return d;
 }
 
@@ -1697,7 +1693,20 @@ function handleMovePiece(color, idx){
   });
 }
 
+var _boardTouchMoved = false;
+boardEl.addEventListener('touchstart', function(e){
+  _boardTouchMoved = false;
+  var pieceEl = e.target.closest('.piece.movable');
+  if(!pieceEl) return;
+  e.preventDefault(); // suppress the 300ms delayed click
+  var color = pieceEl.dataset.color;
+  var idx = parseInt(pieceEl.dataset.idx, 10);
+  handleMovePiece(color, idx);
+}, {passive: false});
+boardEl.addEventListener('touchmove', function(){ _boardTouchMoved = true; }, {passive: true});
 boardEl.addEventListener('click', function(e){
+  // fallback for non-touch (mouse) — touchstart already handled touch
+  if(_boardTouchMoved) return;
   var pieceEl = e.target.closest('.piece.movable');
   if(!pieceEl) return;
   var color = pieceEl.dataset.color;
