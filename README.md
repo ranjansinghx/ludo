@@ -2,7 +2,7 @@
 
 A single-file, mobile-first Ludo game for the browser. Play pass-and-play on one device, or create/join a room to play online with friends in real time.
 
-No build step, no dependencies to install — it's one `index.html` file you can open directly or host anywhere.
+No build step, no dependencies to install — the app is `index.html` plus a small manifest/service worker/icons for installability, all servable from any static file host.
 
 ## Features
 
@@ -10,6 +10,7 @@ No build step, no dependencies to install — it's one `index.html` file you can
 - **Local mode** — 2–4 players pass the phone around on a single device.
 - **Online mode** — create a room, share a short join code, and play live with friends on their own devices. Game state syncs automatically between all players.
 - **Polished mobile UI** — animated dice rolls, piece movement, captures, and a full-screen app-like layout with safe-area support for notched phones.
+- **Installable (PWA)** — "Add to Home Screen" on phones, or install from the browser's install icon on desktop. Runs full-screen like a native app, and local (pass-and-play) mode keeps working offline once installed.
 - **Zero installation** — pure HTML/CSS/JS, works straight from a static file host.
 
 ## Getting Started
@@ -78,12 +79,22 @@ No API keys or server code are required — the client talks to the Realtime Dat
 
 ```
 .
-└── index.html   # entire app: markup, styles, and game logic
+├── index.html            # entire app: markup, styles, and game logic
+├── manifest.json         # PWA metadata (name, icons, display mode)
+├── sw.js                 # service worker — caches the app shell for install/offline
+├── icons/
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   └── icon-maskable-512.png
+├── _headers              # optional HTTP security headers (Netlify/Cloudflare Pages/Vercel)
+└── README.md
 ```
+
+Note: `index.html` still holds all the markup/styles/logic — the other files just add installability (manifest + service worker + icons) and hardened HTTP headers on hosts that support them. Deploy the whole folder together; the manifest, icons, and service worker all need to sit alongside `index.html` at the same path for install to work.
 
 ## Contributing
 
-Issues and pull requests are welcome. Since everything lives in one file, please keep changes scoped and well-commented to keep it easy to review.
+Issues and pull requests are welcome. Since the game logic lives in one file, please keep changes scoped and well-commented to keep it easy to review.
 
 ## License
 
