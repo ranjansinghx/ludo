@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.firebasedatabase.app; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Ludo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -984,7 +986,7 @@ function renderLog(){
   var el = document.getElementById('log-lines');
   if(!App.game){ el.innerHTML=''; return; }
   el.innerHTML = App.game.log.slice(0,30).map(function(line){
-    return '<div class="log-line">'+line+'</div>';
+    return '<div class="log-line">'+escapeHtml(line)+'</div>';
   }).join('');
 }
 
@@ -1153,7 +1155,13 @@ async function roomPut(code, data){
 function randCode(){
   var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   var out='';
-  for(var i=0;i<5;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  if(window.crypto && crypto.getRandomValues){
+    var buf = new Uint32Array(5);
+    crypto.getRandomValues(buf);
+    for(var i=0;i<5;i++) out += chars[buf[i] % chars.length];
+  } else {
+    for(var i=0;i<5;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  }
   return out;
 }
 

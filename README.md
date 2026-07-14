@@ -29,10 +29,37 @@ Then visit the page and tap **Play on this device** for pass-and-play, or **Play
 Online mode syncs game state through a small [Firebase Realtime Database](https://firebase.google.com/docs/database) instance. The app ships pointing at a demo database for convenience — for your own deployment, you should:
 
 1. Create a free Firebase project and enable **Realtime Database**.
-2. Set database rules so reads/writes are scoped to a `/ludo_rooms/{code}` path (avoid open read/write on the whole database).
+2. Set database rules so reads/writes are scoped to a `/ludo_rooms/{code}` path (avoid open read/write on the whole database). At minimum, use something like:
+
+   ```json
+   {
+     "rules": {
+       "ludo_rooms": {
+         "$code": {
+           ".read": true,
+           ".write": true,
+           ".validate": "newData.hasChildren(['code','seats','status','version','updatedAt'])"
+         }
+       },
+       "$other": {
+         ".read": false,
+         ".write": false
+       }
+     }
+   }
+   ```
+
+   This still lets anyone who knows (or guesses) a 5‑character room code read/write that one room — there's no login system — but it stops them from reading or wiping any *other* room or any other data in your project. Rooms are meant to be short-lived and low-stakes (a dice game), not a place to store anything sensitive.
 3. Replace the `FIREBASE_BASE` constant near the top of the script section in `index.html` with your database's URL.
 
 No API keys or server code are required — the client talks to the Realtime Database's REST API directly over `fetch`.
+
+## Security notes
+
+- **Use your own Firebase project for real deployments.** The `FIREBASE_BASE` this repo ships with points at a shared demo database — fine for trying the app out, but don't rely on it for real games since anyone can point their own copy of this page at it too.
+- **There is no server-side move validation.** Any client connected to a room can, in principle, write arbitrary game state (this is the trade-off of a serverless, client-synced design). Don't use this for anything beyond a casual game with people you trust.
+- **Player names are escaped before rendering**, so a malicious player name can't inject HTML/JS into other players' screens.
+- If you deploy on a host that supports custom HTTP headers (Netlify, Cloudflare Pages, Vercel, etc.), the included `_headers` file adds a stricter Content-Security-Policy, clickjacking protection, and other hardening headers on top of the `<meta>` CSP already in `index.html`. Hosts that ignore `_headers` (e.g. plain GitHub Pages) still get the `<meta>` CSP, just without `frame-ancestors` (browsers only honor that one via the HTTP header).
 
 ## How to Play
 
