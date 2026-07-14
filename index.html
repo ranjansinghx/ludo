@@ -1626,7 +1626,9 @@ function pollGameOnce(){
     var room = res.room;
     if(!room || !room.game) return;
     if(onlineWriting || App.animating) return;
-    App.online.version = room.version || App.online.version || 0;
+    var incomingVersion = room.version || 0;
+    if(incomingVersion === App.online.version) return; // nothing changed — don't tear down/rebuild pieces for no reason
+    App.online.version = incomingVersion;
     var prev = App.game;
     var incoming = sanitizeGame(room.game);
     var animated = tryAnimateIncomingMove(prev, incoming);
