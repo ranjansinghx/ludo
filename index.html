@@ -690,7 +690,7 @@ var App = {
   screen:'screen-home',
   mode:null, // 'local' | 'online'
   local:{ selected:new Set(['red','yellow']), names:{} },
-  online:{ roomCode:null, myColor:null, myClientId:null, isHost:false, pollHandle:null, joinedRoom:null },
+  online:{ roomCode:null, myColor:null, myClientId:null, isHost:false, pollHandle:null, joinedRoom:null, version:null },
   game:null,
   soundOn:true,
   animating:false,
@@ -859,9 +859,23 @@ function animateTravel(color, idx, oldP, steps){
     boardEl.appendChild(wrap);
     void wrap.offsetWidth; // commit starting position before transitions begin
 
+    var settled = false;
+    function finish(){
+      if(settled) return;
+      settled = true;
+      if(wrap.parentNode) wrap.remove();
+      resolve();
+    }
+    // Safety net: a backgrounded/throttled tab can delay or skip the timer chain
+    // below indefinitely. Without this, App.animating would stay stuck true
+    // forever, silently freezing the whole game (no more polling, no more moves).
+    var watchdogMs = 1200 + steps.length * 500;
+    setTimeout(finish, watchdogMs);
+
     var i = 0;
     function nextStep(){
-      if(i >= steps.length){ wrap.remove(); resolve(); return; }
+      if(settled) return;
+      if(i >= steps.length){ finish(); return; }
       var p = steps[i];
       var dest = posForP(color, idx, p);
       wrap.style.left = dest.left; wrap.style.top = dest.top;
@@ -1455,13 +1469,14 @@ function _runLobbyPoll(){
       _dbg('STARTING GAME NOW status=' + room.status);
       _stopLobbyLoop();
       App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
       if(App.online.myColor && room.game.colors.indexOf(App.online.myColor) === -1){
         App.online.myColor = room.game.colors[0];
       }
       document.getElementById('log-card').style.display = 'none';
       renderGame();
       show('screen-game');
-      App.online.pollHandle = setInterval(pollGameOnce, 800);
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
       return;
     }
     renderLobbySeats(room);
@@ -1527,9 +1542,10 @@ function startOnlineGame(roomSnapshot){
       // Already started somehow
       _stopLobbyLoop(); stopPolling();
       App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
       document.getElementById('log-card').style.display='none';
       renderGame(); show('screen-game');
-      App.online.pollHandle = setInterval(pollGameOnce, 800);
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
       return;
     }
     var colors = room.seats.map(function(s){ return s.color; });
@@ -1557,9 +1573,10 @@ function startOnlineGame(roomSnapshot){
       }
       _stopLobbyLoop(); stopPolling();
       App.game = game;
+      App.online.version = fullRoom.version;
       document.getElementById('log-card').style.display='none';
       renderGame(); show('screen-game');
-      App.online.pollHandle = setInterval(pollGameOnce, 800);
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
     }).catch(function(e){
       if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
       toast('Write error: ' + (e && e.message ? e.message : String(e)));
@@ -1595,6 +1612,12 @@ document.getElementById('lobby-back').addEventListener('click', function(){
    ====================================================================== */
 var onlineWriting = false;
 
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden && App.mode==='online' && App.online.roomCode){
+    pollGameOnce();
+  }
+});
+
 function pollGameOnce(){
   if(onlineWriting || App.animating) return;
   if(App.screen!=='screen-game' && App.screen!=='screen-gameover') return;
@@ -1603,6 +1626,7 @@ function pollGameOnce(){
     var room = res.room;
     if(!room || !room.game) return;
     if(onlineWriting || App.animating) return;
+    App.online.version = room.version || App.online.version || 0;
     var prev = App.game;
     var incoming = sanitizeGame(room.game);
     var animated = tryAnimateIncomingMove(prev, incoming);
@@ -1644,16 +1668,16 @@ function tryAnimateIncomingMove(prev, incoming){
 function syncPushGame(){
   if(App.mode!=='online') return Promise.resolve(true);
   onlineWriting = true;
-  return roomGet(App.online.roomCode).then(function(res){
-    if(!res.room) return { ok:false };
-    var room = res.room;
-    room.game = App.game;
-    room.status = App.game.status==='finished' ? 'finished' : 'playing';
-    room.version = (room.version||0)+1;
-    room.updatedAt = Date.now();
-    return roomPut(App.online.roomCode, room);
-  }).then(function(res){
+  var nextVersion = (App.online.version||0)+1;
+  var patch = {
+    game: App.game,
+    status: App.game.status==='finished' ? 'finished' : 'playing',
+    version: nextVersion,
+    updatedAt: Date.now()
+  };
+  return roomSet(App.online.roomCode, patch).then(function(res){
     onlineWriting = false;
+    if(res && res.ok) App.online.version = nextVersion;
     return !!(res && res.ok);
   }).catch(function(){ onlineWriting=false; return false; });
 }
