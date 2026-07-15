@@ -44,6 +44,32 @@
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'Space Mono', monospace;
 }
+:root[data-theme="light"]{
+  --felt: #eef2ea;
+  --felt-2: #dfe7d9;
+  --board: #fffdf7;
+  --board-line: #d9c7a3;
+  --ink: #221c14;
+  --cream: #23291f;
+  --cream-dim: #5b6154;
+}
+:root[data-theme="light"] body{
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #f4f7ef 0%, var(--felt) 55%, var(--felt-2) 100%);
+}
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .mode-btn,
+:root[data-theme="light"] .btn-secondary,
+:root[data-theme="light"] .color-chip,
+:root[data-theme="light"] .back-btn,
+:root[data-theme="light"] .icon-btn,
+:root[data-theme="light"] .turn-banner,
+:root[data-theme="light"] .toggle-row{
+  background:rgba(0,0,0,.035); border-color:rgba(0,0,0,.1);
+}
+:root[data-theme="light"] .btn-secondary:active{ background:rgba(0,0,0,.07); }
+:root[data-theme="light"] .color-chip.selected{ background:rgba(0,0,0,.08); border-color:rgba(0,0,0,.3); }
+:root[data-theme="light"] input[type=text]{ background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.15); color:var(--cream); }
+:root[data-theme="light"] .toast{ background:rgba(30,30,26,.92); }
 *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
 html,body{height:100%;}
 body{
@@ -137,6 +163,7 @@ input.code-input{
 .color-chip.disabled{opacity:.3; pointer-events:none;}
 
 /* ---------- Home screen ---------- */
+.home-topbar{display:flex; justify-content:flex-end; gap:8px; min-height:36px;}
 .home-hero{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:6px; padding-bottom:30px;}
 .logo-row{display:flex; gap:7px; margin-bottom:18px;}
 .logo-die{width:30px;height:30px; border-radius:8px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.3); animation: bob 2.6s ease-in-out infinite;}
@@ -343,6 +370,71 @@ input.code-input{
   max-width:88%; text-align:center;
 }
 .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+
+/* ---------- Settings / toggles ---------- */
+.toggle-row{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.09);
+  border-radius:14px; padding:14px 16px;
+}
+.toggle-row .txt strong{display:block; font-family:var(--font-display); font-size:15px;}
+.toggle-row .txt span{display:block; font-size:12.5px; color:var(--cream-dim); margin-top:2px;}
+.switch{
+  position:relative; width:46px; height:27px; border-radius:20px; flex-shrink:0;
+  background:rgba(255,255,255,.15); border:none; padding:0; cursor:pointer;
+  transition: background .18s ease;
+}
+.switch::after{
+  content:''; position:absolute; top:3px; left:3px; width:21px; height:21px; border-radius:50%;
+  background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.3); transition: transform .18s ease;
+}
+.switch.on{ background: linear-gradient(180deg,#ffd873,#e7b53e); }
+.switch.on::after{ transform: translateX(19px); }
+.settings-section{display:flex; flex-direction:column; gap:10px; margin-bottom:22px;}
+.settings-section:last-child{margin-bottom:0;}
+.theme-pick-row{display:flex; gap:9px;}
+.theme-pick{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 8px;
+  border-radius:14px; background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.1);
+  color:var(--cream-dim); font-weight:700; font-size:13px;
+}
+.theme-pick.selected{ background:rgba(255,255,255,.12); color:var(--cream); border-color:rgba(255,255,255,.4); }
+.theme-swatch{width:100%; height:34px; border-radius:9px;}
+.stats-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.stat-box{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:14px; padding:14px; text-align:center;}
+.stat-box .num{font-family:var(--font-display); font-size:26px; color:var(--yellow);}
+.stat-box .lbl{font-size:11.5px; color:var(--cream-dim); text-transform:uppercase; letter-spacing:.8px; margin-top:2px;}
+
+/* ---------- AI toggle (local setup) ---------- */
+.player-row{display:flex; align-items:center; gap:10px;}
+.ai-toggle{
+  flex-shrink:0; padding:9px 13px; border-radius:11px; font-size:12.5px; font-weight:700;
+  background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.14); color:var(--cream-dim);
+}
+.ai-toggle.on{ background:rgba(231,181,62,.18); border-color:rgba(231,181,62,.5); color:var(--yellow); }
+.ai-tag{
+  font-size:10.5px; font-weight:700; color:var(--yellow); background:rgba(231,181,62,.16);
+  border-radius:8px; padding:2px 6px; margin-left:6px; vertical-align:middle;
+}
+
+/* ---------- Turn timer ---------- */
+.turn-timer-badge{font-family:var(--font-mono); font-size:11px; color:var(--cream-dim); margin-left:6px; flex-shrink:0;}
+
+/* ---------- Confetti overlay ---------- */
+#confetti-canvas{
+  position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:250;
+}
+
+/* ---------- Rules screen ---------- */
+.rules-body{display:flex; flex-direction:column; gap:16px; overflow-y:auto; padding-bottom:20px;}
+.rule-item{display:flex; gap:12px; align-items:flex-start;}
+.rule-item .rule-icon{
+  width:38px; height:38px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:18px; background:rgba(255,255,255,.07);
+}
+.rule-item .rule-txt strong{display:block; font-family:var(--font-display); font-size:15px; margin-bottom:3px;}
+.rule-item .rule-txt p{font-size:13.5px; color:var(--cream-dim); line-height:1.5;}
+
 </style>
 </head>
 <body>
@@ -350,6 +442,10 @@ input.code-input{
 
   <!-- HOME -->
   <section class="screen" id="screen-home">
+    <div class="home-topbar">
+      <button class="back-btn" id="btn-open-rules" title="How to play">&#10067;</button>
+      <button class="back-btn" id="btn-open-settings" title="Settings">&#9881;&#65039;</button>
+    </div>
     <div class="home-hero">
       <div class="logo-row"><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div></div>
       <h1>Ludo</h1>
@@ -366,6 +462,64 @@ input.code-input{
       </div>
     </div>
   </section>
+
+  <!-- RULES -->
+  <section class="screen" id="screen-rules">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>How to play</h2></div>
+    <div class="rules-body">
+      <div class="rule-item">
+        <div class="rule-icon">&#127922;</div>
+        <div class="rule-txt"><strong>Getting a piece out</strong><p>Roll a 6 to move a piece from your yard onto the starting square of your color.</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#8226;&#8226;&#8226;</div>
+        <div class="rule-txt"><strong>Moving around the board</strong><p>Move a piece the number of squares shown on the dice, following the track in a clockwise direction until it reaches your colored home column.</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#9995;</div>
+        <div class="rule-txt"><strong>Capturing</strong><p>Land exactly on a square occupied by an opponent's piece to send it back to their yard &mdash; unless that square is a safe square (marked with a dot on the board).</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#10024;</div>
+        <div class="rule-txt"><strong>Extra turns</strong><p>Rolling a 6, capturing a piece, or getting a piece all the way home earns another roll. Three 6s in a row forfeits the turn.</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#127942;</div>
+        <div class="rule-txt"><strong>Winning</strong><p>Get all four of your pieces all the way around the board and into your home column to win. First color to do it takes the game.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="screen" id="screen-settings">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>Settings</h2></div>
+    <div class="setup-body">
+      <div class="settings-section">
+        <span class="field-label">Appearance</span>
+        <div class="theme-pick-row" id="theme-pick-row"></div>
+      </div>
+      <div class="settings-section">
+        <span class="field-label">Sound &amp; feedback</span>
+        <div class="toggle-row">
+          <div class="txt"><strong>Sound effects</strong><span>Dice, captures, and win chime</span></div>
+          <button class="switch" id="toggle-sound"></button>
+        </div>
+        <div class="toggle-row">
+          <div class="txt"><strong>Vibration</strong><span>Buzz on captures and wins</span></div>
+          <button class="switch" id="toggle-haptics"></button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="field-label">Stats</span>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="num" id="stat-played">0</div><div class="lbl">Games played</div></div>
+          <div class="stat-box"><div class="num" id="stat-won">0</div><div class="lbl">Games won</div></div>
+        </div>
+        <button class="btn btn-secondary btn-block btn-sm" id="btn-reset-stats" style="margin-top:2px;">Reset stats</button>
+      </div>
+    </div>
+  </section>
+
 
   <!-- LOCAL SETUP -->
   <section class="screen" id="screen-local-setup">
@@ -479,6 +633,7 @@ input.code-input{
           <div class="who" id="turn-who">&mdash;</div>
           <div class="what" id="turn-what">&mdash;</div>
         </div>
+        <span class="turn-timer-badge" id="turn-timer"></span>
       </div>
       <button class="icon-btn" id="btn-log-toggle">&#128220;</button>
     </div>
@@ -520,6 +675,7 @@ input.code-input{
 
 </div>
 <div class="toast" id="toast"></div>
+<canvas id="confetti-canvas"></canvas>
 
 <script>
 (function(){
@@ -555,7 +711,7 @@ function cellCoordFor(color, p){
 /* ======================================================================
    GAME ENGINE
    ====================================================================== */
-function newGame(colorList, names){
+function newGame(colorList, names, aiColors){
   var pieces = [];
   colorList.forEach(function(c){
     for(var i=0;i<4;i++) pieces.push({color:c, idx:i, p:-1});
@@ -563,6 +719,7 @@ function newGame(colorList, names){
   return {
     colors: colorList.slice(),
     names: Object.assign({}, names),
+    aiColors: (aiColors||[]).slice(),
     pieces: pieces,
     turn: 0,
     dice: null,
@@ -573,7 +730,8 @@ function newGame(colorList, names){
     status: 'playing',
     winner: null,
     lastMove: null,
-    justGotExtraTurn: false
+    justGotExtraTurn: false,
+    turnStartedAt: Date.now()
   };
 }
 
@@ -678,6 +836,7 @@ function engineMove(game, pieceIdx){
     // Only keep the six-streak going if the extra turn came from rolling a 6;
     // captures and finishing pieces break the streak.
     if(roll!==6) game.consecutiveSixes = 0;
+    game.turnStartedAt = Date.now();
   }
 }
 
@@ -688,6 +847,40 @@ function endTurn(game){
   game.movable=[];
   game.justGotExtraTurn=false;
   game.turn = (game.turn+1) % game.colors.length;
+  game.turnStartedAt = Date.now();
+}
+
+/* ---------- simple AI heuristic ----------
+   Prefers, in order: finishing a piece, capturing an opponent, getting a
+   piece out of the yard, landing on a safe square, then generally the
+   most-advanced piece. Nothing exhaustive — just enough to feel purposeful. */
+function chooseAIMove(game, color){
+  var moves = game.movable;
+  if(!moves || moves.length===0) return null;
+  if(moves.length===1) return moves[0];
+  var roll = game.dice;
+  var best = null, bestScore = -Infinity;
+  moves.forEach(function(idx){
+    var piece = findPiece(game, color, idx);
+    var oldP = piece.p;
+    var newP = (oldP===-1) ? 0 : oldP+roll;
+    var score = 0;
+    if(newP===57) score += 100;
+    if(newP>=0 && newP<=50){
+      var gIdx = globalIdxFor(color, newP);
+      if(!SAFE_IDX.has(gIdx)){
+        game.pieces.forEach(function(pc){
+          if(pc.color===color || pc.p<0 || pc.p>50) return;
+          if(globalIdxFor(pc.color, pc.p)===gIdx) score += 80;
+        });
+      }
+      if(SAFE_IDX.has(gIdx)) score += 10;
+    }
+    if(oldP===-1) score += 40;
+    score += newP*0.3;
+    if(score>bestScore){ bestScore=score; best=idx; }
+  });
+  return best!==null ? best : moves[0];
 }
 
 /* ======================================================================
@@ -696,14 +889,84 @@ function endTurn(game){
 var App = {
   screen:'screen-home',
   mode:null, // 'local' | 'online'
-  local:{ selected:new Set(['red','yellow']), names:{} },
+  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set() },
   online:{ roomCode:null, myColor:null, myClientId:null, isHost:false, pollHandle:null, joinedRoom:null, version:null },
   game:null,
   soundOn:true,
+  hapticsOn:true,
+  theme:'dark',
   animating:false,
   travelingPieceKey:null
 };
 App.online.myClientId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('c'+Math.random().toString(36).slice(2)+Date.now());
+
+/* ---------- persisted settings / local prefs / stats ---------- */
+var SETTINGS_KEY = 'ludo_settings_v1';
+var LOCAL_PREFS_KEY = 'ludo_local_prefs_v1';
+var STATS_KEY = 'ludo_stats_v1';
+
+function loadJSON(key){
+  try{
+    var raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveJSON(key, obj){
+  try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){ /* ignore quota/private-mode errors */ }
+}
+
+function loadSettings(){
+  var s = loadJSON(SETTINGS_KEY);
+  if(!s) return;
+  if(typeof s.soundOn==='boolean') App.soundOn = s.soundOn;
+  if(typeof s.hapticsOn==='boolean') App.hapticsOn = s.hapticsOn;
+  if(s.theme==='light' || s.theme==='dark') App.theme = s.theme;
+}
+function saveSettings(){
+  saveJSON(SETTINGS_KEY, { soundOn:App.soundOn, hapticsOn:App.hapticsOn, theme:App.theme });
+}
+
+function loadLocalPrefs(){
+  var p = loadJSON(LOCAL_PREFS_KEY);
+  if(!p) return;
+  if(Array.isArray(p.selected) && p.selected.length>=2){
+    App.local.selected = new Set(p.selected.filter(function(c){ return ALL_COLORS.indexOf(c)!==-1; }));
+  }
+  if(p.names && typeof p.names==='object') App.local.names = p.names;
+  if(Array.isArray(p.ai)) App.local.ai = new Set(p.ai);
+}
+function saveLocalPrefs(){
+  saveJSON(LOCAL_PREFS_KEY, {
+    selected: Array.from(App.local.selected),
+    names: App.local.names,
+    ai: Array.from(App.local.ai)
+  });
+}
+
+function loadStats(){
+  return Object.assign({ played:0, won:0 }, loadJSON(STATS_KEY) || {});
+}
+function recordGameStarted(){
+  var s = loadStats(); s.played += 1; saveJSON(STATS_KEY, s);
+}
+function recordGameWon(){
+  var s = loadStats(); s.won += 1; saveJSON(STATS_KEY, s);
+}
+
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', App.theme==='light' ? 'light' : 'dark');
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', App.theme==='light' ? '#eef2ea' : '#133229');
+}
+
+function vibrate(pattern){
+  if(!App.hapticsOn) return;
+  try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){ /* unsupported */ }
+}
+
+loadSettings();
+loadLocalPrefs();
+applyTheme();
 
 function show(id){
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
@@ -744,6 +1007,52 @@ function beep(freq, dur, type){
 function sfxRoll(){ beep(330,.12,'square'); }
 function sfxCapture(){ beep(180,.25,'sawtooth'); }
 function sfxWin(){ [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){ beep(f,.3,'sine'); }, i*120); }); }
+
+/* ---------- confetti burst (canvas, no external assets) ---------- */
+function launchConfetti(){
+  var canvas = document.getElementById('confetti-canvas');
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  var palette = ['#d6453c','#2f9e5b','#e7b53e','#3f7fd6','#ffffff'];
+  var pieces = [];
+  var n = 110;
+  for(var i=0;i<n;i++){
+    pieces.push({
+      x: Math.random()*canvas.width,
+      y: -30*dpr - Math.random()*canvas.height*0.4,
+      vx: (Math.random()-0.5)*2.4*dpr,
+      vy: (2+Math.random()*3)*dpr,
+      size: (4+Math.random()*5)*dpr,
+      color: palette[Math.floor(Math.random()*palette.length)],
+      rot: Math.random()*Math.PI*2,
+      vr: (Math.random()-0.5)*0.3
+    });
+  }
+  var start = Date.now();
+  var duration = 2600;
+  function frame(){
+    var elapsed = Date.now()-start;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(function(p){
+      p.x += p.vx; p.y += p.vy; p.vy += 0.03*dpr; p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size/2, -p.size/4, p.size, p.size/2);
+      ctx.restore();
+    });
+    if(elapsed<duration && App.screen==='screen-gameover'){
+      requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+    }
+  }
+  requestAnimationFrame(frame);
+}
 
 /* ======================================================================
    BOARD RENDERING (static board built once, pieces re-rendered on change)
@@ -915,6 +1224,17 @@ function canActNow(){
   var color = App.game.colors[App.game.turn];
   return color === App.online.myColor;
 }
+// Stricter than canActNow(): also false when it's an AI-controlled color's
+// turn, so humans can't tap in and hijack the computer's move. handleRollClick
+// and handleMovePiece stay gated on canActNow() alone so the AI scheduler's
+// own calls still go through — only the UI entry points (dice tap, roll
+// button) check this before calling them.
+function isHumanTurn(){
+  if(!canActNow()) return false;
+  var color = App.game.colors[App.game.turn];
+  if(App.mode==='local' && App.game.aiColors && App.game.aiColors.indexOf(color)!==-1) return false;
+  return true;
+}
 
 var PIP_PATTERNS = {
   1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
@@ -928,7 +1248,7 @@ function renderDice(){
     var i = parseInt(p.dataset.i,10);
     p.classList.toggle('on', active.indexOf(i)!==-1);
   });
-  var disabled = !App.game || App.game.status!=='playing' || !canActNow() || App.game.diceRolled || App.animating;
+  var disabled = !App.game || App.game.status!=='playing' || !isHumanTurn() || App.game.diceRolled || App.animating;
   diceEl.classList.toggle('disabled', disabled);
   var rollBtn = document.getElementById('btn-roll');
   rollBtn.disabled = disabled;
@@ -945,7 +1265,7 @@ function renderGame(){
   });
 
   var myTurnColor = game.colors[game.turn];
-  var iCanAct = canActNow() && !App.animating;
+  var iCanAct = isHumanTurn() && !App.animating;
 
   game.pieces.forEach(function(piece){
     if(App.travelingPieceKey === (piece.color+piece.idx)) return; // shown by the traveling overlay instead
@@ -966,13 +1286,18 @@ function renderGame(){
   stackEls.forEach(function(el){ if(el.children.length===1) el.classList.add('single'); });
 
   document.getElementById('turn-dot').style.background = COLORS[myTurnColor].hex;
-  document.getElementById('turn-who').textContent = colorLabel(game, myTurnColor) + (App.mode==='online' && myTurnColor===App.online.myColor ? ' (You)' : '');
+  var isAITurn = game.aiColors && game.aiColors.indexOf(myTurnColor)!==-1;
+  document.getElementById('turn-who').innerHTML = escapeHtml(colorLabel(game, myTurnColor)) +
+    (App.mode==='online' && myTurnColor===App.online.myColor ? ' (You)' : '') +
+    (isAITurn ? ' <span class="ai-tag">AI</span>' : '');
 
   var what = '';
   if(game.status==='finished'){
     what = 'Game over';
   } else if(App.animating){
     what = 'Moving\u2026';
+  } else if(isAITurn){
+    what = colorLabel(game, myTurnColor) + ' (AI) is thinking\u2026';
   } else if(!canActNow()){
     what = 'Waiting for ' + colorLabel(game, myTurnColor) + '\u2026';
   } else if(!game.diceRolled){
@@ -996,11 +1321,57 @@ function renderGame(){
   renderDice();
   renderLog();
 
+  var timerEl = document.getElementById('turn-timer');
+  if(timerEl){
+    if(game.status==='playing' && game.turnStartedAt){
+      var secs = Math.max(0, Math.floor((Date.now()-game.turnStartedAt)/1000));
+      timerEl.textContent = secs+'s';
+    } else {
+      timerEl.textContent = '';
+    }
+  }
+
   if(game.status==='finished'){
     document.getElementById('gameover-color').textContent = colorLabel(game, game.winner);
     document.getElementById('gameover-color').style.color = COLORS[game.winner].hex;
-    setTimeout(function(){ sfxWin(); show('screen-gameover'); }, 700);
+    var playAgainBtn = document.getElementById('btn-play-again');
+    if(App.mode==='online'){
+      playAgainBtn.textContent = App.online.isHost ? 'Rematch' : 'Waiting for host\u2026';
+    } else {
+      playAgainBtn.textContent = 'Play Again';
+    }
+    if(App.mode==='local'){
+      recordGameWon_ifHuman(game);
+    }
+    setTimeout(function(){ sfxWin(); vibrate([40,60,40,60,160]); show('screen-gameover'); launchConfetti(); }, 700);
+  } else {
+    maybeRunAITurn();
   }
+}
+
+function recordGameWon_ifHuman(game){
+  var isAIWinner = game.aiColors && game.aiColors.indexOf(game.winner)!==-1;
+  if(!isAIWinner) recordGameWon();
+}
+
+/* ---------- AI turn scheduler (local mode only) ---------- */
+var aiTimer = null;
+function maybeRunAITurn(){
+  if(App.mode!=='local' || !App.game || App.game.status!=='playing') return;
+  var color = App.game.colors[App.game.turn];
+  if(!App.game.aiColors || App.game.aiColors.indexOf(color)===-1) return;
+  if(App.animating || aiTimer) return;
+  aiTimer = setTimeout(function(){
+    aiTimer = null;
+    if(!App.game || App.game.status!=='playing' || App.animating) return;
+    if(App.game.colors[App.game.turn]!==color) return; // stale, turn already moved on
+    if(!App.game.diceRolled){
+      handleRollClick();
+    } else {
+      var idx = chooseAIMove(App.game, color);
+      if(idx!==null && App.game.movable.indexOf(idx)!==-1) handleMovePiece(color, idx);
+    }
+  }, 650);
 }
 
 function renderLog(){
@@ -1024,11 +1395,12 @@ function renderLocalSetup(){
     chip.innerHTML = '<span class="dot" style="background:'+COLORS[color].hex+'"></span>'+COLORS[color].label;
     chip.addEventListener('click', function(){
       if(App.local.selected.has(color)){
-        if(App.local.selected.size>2) App.local.selected.delete(color);
+        if(App.local.selected.size>2){ App.local.selected.delete(color); App.local.ai.delete(color); }
         else toast('Need at least 2 players');
       } else {
         if(App.local.selected.size<4) App.local.selected.add(color);
       }
+      saveLocalPrefs();
       renderLocalSetup();
     });
     chipsEl.appendChild(chip);
@@ -1046,8 +1418,18 @@ function renderLocalSetup(){
     input.type='text'; input.maxLength=16;
     input.placeholder = COLORS[color].label;
     input.value = App.local.names[color] || '';
-    input.addEventListener('input', function(){ App.local.names[color] = input.value; });
-    row.appendChild(dot); row.appendChild(input);
+    input.addEventListener('input', function(){ App.local.names[color] = input.value; saveLocalPrefs(); });
+    var aiBtn = document.createElement('button');
+    aiBtn.type='button';
+    aiBtn.className = 'ai-toggle' + (App.local.ai.has(color) ? ' on' : '');
+    aiBtn.textContent = App.local.ai.has(color) ? 'AI \u2713' : 'AI';
+    aiBtn.addEventListener('click', function(){
+      if(App.local.ai.has(color)) App.local.ai.delete(color);
+      else App.local.ai.add(color);
+      saveLocalPrefs();
+      renderLocalSetup();
+    });
+    row.appendChild(dot); row.appendChild(input); row.appendChild(aiBtn);
     namesEl.appendChild(row);
   });
 }
@@ -1063,7 +1445,10 @@ document.getElementById('btn-local-start').addEventListener('click', function(){
   if(colors.length<2){ toast('Pick at least 2 players'); return; }
   var names = {};
   colors.forEach(function(c){ names[c] = (App.local.names[c]||'').trim() || COLORS[c].label; });
-  App.game = newGame(colors, names);
+  var aiColors = colors.filter(function(c){ return App.local.ai.has(c); });
+  saveLocalPrefs();
+  App.game = newGame(colors, names, aiColors);
+  recordGameStarted();
   document.getElementById('log-card').style.display='none';
   renderGame();
   show('screen-game');
@@ -1638,6 +2023,14 @@ function pollGameOnce(){
     App.online.version = incomingVersion;
     var prev = App.game;
     var incoming = sanitizeGame(room.game);
+    var isRematch = incoming.status==='playing' && prev && prev.status==='finished';
+    if(isRematch){
+      App.game = incoming;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      return;
+    }
     var animated = tryAnimateIncomingMove(prev, incoming);
     if(!animated){
       App.game = incoming;
@@ -1691,17 +2084,42 @@ function syncPushGame(){
   }).catch(function(){ onlineWriting=false; return false; });
 }
 
+// Host-only: reuse the same room/seats and start a fresh game without
+// returning everyone to the lobby. Guests pick it up via pollGameOnce.
+function onlineRematch(){
+  if(!App.online.isHost){ toast('Only the host can start a rematch'); return; }
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){ toast('Cannot reach server \u2014 try again'); return; }
+    var room = res.room;
+    var colors = room.seats.map(function(s){ return s.color; });
+    var names = {};
+    room.seats.forEach(function(s){ names[s.color] = s.name; });
+    var game = newGame(colors, names);
+    var patch = { game: game, status:'playing', version:(room.version||0)+1, updatedAt: Date.now() };
+    roomSet(room.code, patch).then(function(setRes){
+      if(!setRes || !setRes.ok){ toast('Could not start rematch \u2014 try again'); return; }
+      App.game = game;
+      App.online.version = patch.version;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+    });
+  }).catch(function(){ toast('Network error \u2014 try again'); });
+}
+
 /* ======================================================================
    GAME ACTIONS (shared by local + online)
    ====================================================================== */
-function handleRollClick(){
+function handleRollClick(fromUI){
   if(!App.game || App.game.status!=='playing') return;
   if(App.animating) return;
+  if(fromUI && !isHumanTurn()){ toast("It's not your turn"); return; }
   if(!canActNow()){ toast("It's not your turn"); return; }
   if(App.game.diceRolled) return;
   var diceEl = document.getElementById('dice');
   diceEl.classList.remove('rolling'); void diceEl.offsetWidth; diceEl.classList.add('rolling');
   sfxRoll();
+  vibrate(15);
   engineRoll(App.game);
   renderGame();
   if(App.mode==='online') syncPushGame();
@@ -1729,7 +2147,7 @@ function handleMovePiece(color, idx){
     App.travelingPieceKey = null;
     engineMove(App.game, idx);
     var captureHappened = App.game.log[0] && App.game.log[0].indexOf('captured')!==-1;
-    if(captureHappened) sfxCapture();
+    if(captureHappened){ sfxCapture(); vibrate([25,35,25]); }
     renderGame();
     if(App.mode==='online') syncPushGame();
   });
@@ -1756,8 +2174,8 @@ boardEl.addEventListener('click', function(e){
   handleMovePiece(color, idx);
 });
 
-document.getElementById('dice').addEventListener('click', handleRollClick);
-document.getElementById('btn-roll').addEventListener('click', handleRollClick);
+document.getElementById('dice').addEventListener('click', function(){ handleRollClick(true); });
+document.getElementById('btn-roll').addEventListener('click', function(){ handleRollClick(true); });
 
 document.getElementById('btn-log-toggle').addEventListener('click', function(){
   var card = document.getElementById('log-card');
@@ -1780,18 +2198,74 @@ document.getElementById('btn-gameover-home').addEventListener('click', function(
 
 document.getElementById('btn-play-again').addEventListener('click', function(){
   if(App.mode==='online'){
-    toast('Start a new room from the home screen to play again');
-    stopPolling();
-    App.game=null; App.mode=null;
-    show('screen-home');
+    if(App.online.isHost){
+      onlineRematch();
+    } else {
+      toast('Waiting for the host to start a rematch');
+    }
     return;
   }
   var colors = App.game.colors.slice();
   var names = App.game.names;
-  App.game = newGame(colors, names);
+  var aiColors = App.game.aiColors ? App.game.aiColors.slice() : [];
+  App.game = newGame(colors, names, aiColors);
+  recordGameStarted();
   document.getElementById('log-card').style.display='none';
   renderGame();
   show('screen-game');
+});
+
+/* ======================================================================
+   RULES & SETTINGS SCREENS
+   ====================================================================== */
+document.getElementById('btn-open-rules').addEventListener('click', function(){ show('screen-rules'); });
+document.getElementById('btn-open-settings').addEventListener('click', function(){ renderSettings(); show('screen-settings'); });
+
+var THEME_OPTIONS = [
+  { id:'dark', label:'Dark', swatch:'linear-gradient(155deg,#1c4536,#0e2620)' },
+  { id:'light', label:'Light', swatch:'linear-gradient(155deg,#fffdf7,#dfe7d9)' }
+];
+
+function renderSettings(){
+  var row = document.getElementById('theme-pick-row');
+  row.innerHTML = '';
+  THEME_OPTIONS.forEach(function(opt){
+    var el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'theme-pick' + (App.theme===opt.id ? ' selected' : '');
+    el.innerHTML = '<div class="theme-swatch" style="background:'+opt.swatch+'"></div><span>'+opt.label+'</span>';
+    el.addEventListener('click', function(){
+      App.theme = opt.id;
+      applyTheme();
+      saveSettings();
+      renderSettings();
+    });
+    row.appendChild(el);
+  });
+
+  document.getElementById('toggle-sound').classList.toggle('on', App.soundOn);
+  document.getElementById('toggle-haptics').classList.toggle('on', App.hapticsOn);
+
+  var stats = loadStats();
+  document.getElementById('stat-played').textContent = stats.played;
+  document.getElementById('stat-won').textContent = stats.won;
+}
+
+document.getElementById('toggle-sound').addEventListener('click', function(){
+  App.soundOn = !App.soundOn;
+  saveSettings();
+  renderSettings();
+});
+document.getElementById('toggle-haptics').addEventListener('click', function(){
+  App.hapticsOn = !App.hapticsOn;
+  saveSettings();
+  renderSettings();
+  if(App.hapticsOn) vibrate(15);
+});
+document.getElementById('btn-reset-stats').addEventListener('click', function(){
+  saveJSON(STATS_KEY, { played:0, won:0 });
+  renderSettings();
+  toast('Stats reset');
 });
 
 /* ======================================================================
