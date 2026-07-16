@@ -18,6 +18,11 @@ No build step, no dependencies to install — the app is `index.html` plus a sma
 - **Move hints** — a "Suggest a move" button runs the same AI heuristic on your own turn and pulses the piece it'd move, without moving it for you.
 - **Turn timer** — a small running-seconds badge next to the turn banner shows how long the current player has been thinking, both locally and online.
 - **Reconnect on reload** — online sessions are persisted per-device, so refreshing the page, backgrounding the app, or a dropped connection silently rejoins your seat in the same room (with a "Reconnecting…" banner) instead of losing your spot.
+- **"Your turn" tab flash** — if you switch away from an online game's tab, the tab title flashes "🎲 Your turn!" as soon as play comes back around to you, so you don't have to keep checking back.
+- **Connection status during play** — if your connection drops mid-game, a "Connection lost — retrying…" banner appears after a couple of missed syncs and clears automatically once syncing resumes, instead of failing silently.
+- **Update notifications** — if you have the app open when a newer version is deployed, a toast lets you know so you can refresh and get the latest version.
+- **Working invite links** — the room lobby's "Share invite link" button shares (or copies) an actual link with the room code baked in (`?room=CODE`); opening it drops your friend straight into the join screen with the code already filled in, instead of just handing them a code to type in by hand.
+- **iOS install hint** — since iOS doesn't support the automatic install prompt used on Android/desktop, iPhone/iPad visitors instead see a small dismissible banner pointing at the manual Share → Add to Home Screen steps.
 - **Stats and game history** — a settings-screen record of games played/won and a short list of recent results (winner, mode, and how long ago), stored locally on your device with a one-tap reset.
 - **Share result** — after a game, share the result via the OS share sheet (or copy it to the clipboard as a fallback) to post to friends.
 - **Sound, haptics, and accessibility toggles** — optional sound effects and vibration feedback on rolls/captures/wins, a light/dark theme switch, and a colorblind-friendly mode that adds distinct shapes to each color's pieces.

@@ -567,6 +567,16 @@ input.code-input{
   display:flex; align-items:center; gap:9px; padding:12px 14px; border-radius:13px; margin-bottom:14px;
   background:rgba(63,127,214,.14); border:1.5px solid rgba(63,127,214,.4); color:#cfe0fb; font-size:13.5px; font-weight:600;
 }
+.ios-install-banner{
+  position:fixed; bottom:max(18px, env(safe-area-inset-bottom)); left:16px; right:16px;
+  z-index:150; display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:13px;
+  background:rgba(255,255,255,.08); border:1.5px solid rgba(255,255,255,.2); color:var(--cream);
+  font-size:13px; font-weight:600; line-height:1.4; box-shadow:0 6px 20px rgba(0,0,0,.4);
+}
+.ios-install-banner button{
+  background:none; border:none; color:inherit; opacity:.7; font-size:20px; line-height:1;
+  padding:2px 4px; cursor:pointer; flex-shrink:0;
+}
 
 /* ---------- Match history ---------- */
 .history-row{
@@ -610,6 +620,10 @@ input.code-input{
     </div>
   </section>
   <button class="btn btn-primary install-btn" id="btn-install" style="display:none;">&#11015;&#65039; Install App</button>
+  <div class="ios-install-banner" id="ios-install-banner" style="display:none;">
+    <span>Install this app: tap <strong>Share</strong> &#8593; then <strong>Add to Home Screen</strong>.</span>
+    <button type="button" id="btn-ios-install-dismiss" aria-label="Dismiss">&times;</button>
+  </div>
 
   <!-- RULES -->
   <section class="screen" id="screen-rules">
@@ -795,7 +809,7 @@ input.code-input{
         <div class="code" id="lobby-code">&mdash;</div>
         <div class="hint">Tell your friends to tap "Join a room"</div>
       </div>
-      <button class="btn btn-secondary btn-block btn-sm" id="btn-copy-code">Copy invite message</button>
+      <button class="btn btn-secondary btn-block btn-sm" id="btn-copy-code">Share invite link</button>
       <div>
         <span class="field-label">Seats</span>
         <div class="seats" id="lobby-seats"></div>
@@ -825,6 +839,8 @@ input.code-input{
       <button class="icon-btn" id="btn-chat-toggle" style="display:none;">&#128172;<span class="chat-badge" id="chat-badge" style="display:none;">0</span></button>
       <button class="icon-btn" id="btn-log-toggle">&#128220;</button>
     </div>
+
+    <div id="game-connection-banner" class="status-banner warn" style="display:none; margin:0 16px 10px;"><span class="waiting-pulse"></span>Connection lost &mdash; retrying&hellip;</div>
 
     <div class="board-wrap"><div class="board" id="board"></div></div>
 
@@ -1347,6 +1363,8 @@ function show(id){
   App.screen = id;
   var installBtn = document.getElementById('btn-install');
   if(installBtn) installBtn.style.display = (App.installPromptEvent && id==='screen-home') ? 'block' : 'none';
+  var iosBanner = document.getElementById('ios-install-banner');
+  if(iosBanner && iosBanner.dataset.eligible==='1') iosBanner.style.display = (id==='screen-home') ? 'flex' : 'none';
 }
 document.querySelectorAll('[data-back]').forEach(function(b){
   b.addEventListener('click', function(){
@@ -1691,6 +1709,31 @@ function renderDice(){
   }
 }
 
+/* ---------- "your turn" tab-title flash ----------
+   When an online tab is backgrounded and it becomes this player's turn,
+   flash the document title so a glance at the tab bar is enough to notice
+   — no permissions needed, unlike the Notification API. Cleared as soon as
+   the tab is foregrounded again, the turn moves on, or the game ends. */
+var DEFAULT_TITLE = document.title;
+var titleFlashHandle = null;
+function startTitleFlash(){
+  if(titleFlashHandle) return;
+  var showAlert = true;
+  titleFlashHandle = setInterval(function(){
+    document.title = showAlert ? '\uD83C\uDFB2 Your turn! \u2014 Ludo' : DEFAULT_TITLE;
+    showAlert = !showAlert;
+  }, 1000);
+}
+function stopTitleFlash(){
+  if(!titleFlashHandle) return;
+  clearInterval(titleFlashHandle);
+  titleFlashHandle = null;
+  document.title = DEFAULT_TITLE;
+}
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden) stopTitleFlash();
+});
+
 function renderGame(){
   if(!App.game) return;
   var game = App.game;
@@ -1722,6 +1765,10 @@ function renderGame(){
     }
   });
   stackEls.forEach(function(el){ if(el.children.length===1) el.classList.add('single'); });
+
+  var myTurnNow = App.mode==='online' && !App.online.isSpectator && game.status==='playing' && myTurnColor===App.online.myColor;
+  if(myTurnNow && document.hidden) startTitleFlash();
+  else stopTitleFlash();
 
   document.getElementById('turn-dot').style.background = COLORS[myTurnColor].hex;
   var isAITurn = game.aiColors && game.aiColors.indexOf(myTurnColor)!==-1;
@@ -2622,9 +2669,15 @@ function escapeHtml(s){
 }
 
 document.getElementById('btn-copy-code').addEventListener('click', function(){
-  var msg = 'Join my Ludo game! Open the app link I sent you, tap "Play online with friends" \u2192 "Join a room", and enter code: ' + App.online.roomCode;
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(msg).then(function(){ toast('Invite message copied'); }).catch(function(){ toast(App.online.roomCode); });
+  // handleDeepLinkJoin() already knows how to read ?room=CODE straight into
+  // the join screen with the code prefilled — include that link so tapping
+  // it (not just reading the code off it) gets a friend most of the way in.
+  var joinUrl = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(App.online.roomCode);
+  var msg = 'Join my Ludo game! Open this link, or open the app and enter code ' + App.online.roomCode + ':\n' + joinUrl;
+  if(navigator.share){
+    navigator.share({ text: msg, url: joinUrl }).catch(function(){ /* user cancelled share sheet — no error needed */ });
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(msg).then(function(){ toast('Invite link copied'); }).catch(function(){ toast(App.online.roomCode); });
   } else {
     toast('Room code: ' + App.online.roomCode);
   }
@@ -2733,12 +2786,30 @@ function maybeRunOnlineAITurn(){
   }, 700);
 }
 
+// In-game connection banner: a lobby/menu-level connectivity check already
+// exists (checkOnlineAvailability), but once a game is underway a dropped
+// connection was previously invisible — pollGameOnce just silently retried.
+// Surface it after a couple of consecutive failures (so a single missed
+// beat doesn't flash the banner), and clear it the moment a poll succeeds.
+var GAME_CONN_FAIL_THRESHOLD = 2;
+var gameConnFailCount = 0;
+function setGameConnBanner(visible){
+  var el = document.getElementById('game-connection-banner');
+  if(el) el.style.display = visible ? 'flex' : 'none';
+}
+
 function pollGameOnce(){
   if(onlineWriting || App.animating) return;
   if(App.screen!=='screen-game' && App.screen!=='screen-gameover') return;
   if(maybeAutoSkipAFKTurn()) return; // just wrote a skip — next tick will pick up the fresh state
   roomGet(App.online.roomCode).then(function(res){
-    if(res.timedOut || res.unavailable) return; // transient — try again next tick
+    if(res.timedOut || res.unavailable){
+      gameConnFailCount++;
+      if(gameConnFailCount>=GAME_CONN_FAIL_THRESHOLD) setGameConnBanner(true);
+      return; // transient — try again next tick
+    }
+    gameConnFailCount = 0;
+    setGameConnBanner(false);
     var room = res.room;
     if(!room) return;
     handleIncomingReaction(room);
@@ -3100,6 +3171,9 @@ document.getElementById('chat-form').addEventListener('submit', function(e){
 
 document.getElementById('btn-leave-game').addEventListener('click', function(){
   stopPolling();
+  stopTitleFlash();
+  gameConnFailCount = 0;
+  setGameConnBanner(false);
   closeChatPanel();
   App.online.chatMessages = [];
   App.online.chatUnread = 0;
@@ -3114,6 +3188,9 @@ document.getElementById('btn-leave-game').addEventListener('click', function(){
 
 document.getElementById('btn-gameover-home').addEventListener('click', function(){
   stopPolling();
+  stopTitleFlash();
+  gameConnFailCount = 0;
+  setGameConnBanner(false);
   closeChatPanel();
   App.online.chatMessages = [];
   App.online.chatUnread = 0;
@@ -3289,6 +3366,32 @@ function setupInstallPrompt(){
   }
 }
 
+// iOS Safari (and other iOS browsers, which share its "Add to Home Screen"
+// share-sheet action) never fires beforeinstallprompt, so btn-install above
+// never appears there — leaving iPhone/iPad users with no in-app hint that
+// installing is even possible. Show a small dismissible banner instead,
+// pointing at the manual Share -> Add to Home Screen steps.
+var IOS_INSTALL_DISMISS_KEY = 'ludo_ios_install_dismissed_v1';
+function setupIOSInstallHint(){
+  var banner = document.getElementById('ios-install-banner');
+  if(!banner) return;
+  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone===true;
+  if(isStandalone) return;
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if(!isIOS) return;
+  if(loadJSON(IOS_INSTALL_DISMISS_KEY)) return;
+  banner.dataset.eligible = '1';
+  if(App.screen==='screen-home') banner.style.display='flex';
+  var dismissBtn = document.getElementById('btn-ios-install-dismiss');
+  if(dismissBtn){
+    dismissBtn.addEventListener('click', function(){
+      banner.style.display='none';
+      banner.dataset.eligible='0';
+      saveJSON(IOS_INSTALL_DISMISS_KEY, true);
+    });
+  }
+}
+
 /* ======================================================================
    INIT
    ====================================================================== */
@@ -3296,8 +3399,20 @@ show('screen-home');
 attemptReconnect();
 handleDeepLinkJoin();
 setupInstallPrompt();
+setupIOSInstallHint();
 
 if('serviceWorker' in navigator){
+  // Distinguish "this tab just got its first-ever controller" (normal,
+  // silent) from "a new version took over while this tab was already
+  // open" (worth telling the player about, since sw.js skips the usual
+  // wait-for-all-tabs-to-close step via skipWaiting()/clients.claim()).
+  var hadServiceWorkerController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if(hadServiceWorkerController){
+      toast('Updated! Refresh for the latest version.');
+    }
+    hadServiceWorkerController = true;
+  });
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('sw.js').catch(function(e){
       console.error('Ludo: service worker registration failed', e);
