@@ -256,10 +256,6 @@ input.code-input{
   background:rgba(214,69,60,.16); border:1px solid rgba(214,69,60,.4); color:#ff8a80;
   display:flex; align-items:center; justify-content:center;
 }
-.close-room-link{
-  display:block; text-align:center; font-size:12.5px; color:var(--cream-dim); font-weight:600;
-  padding:12px 0 2px; text-decoration:underline; text-underline-offset:2px;
-}
 .waiting-pulse{display:inline-block; width:8px;height:8px;border-radius:50%; background:var(--yellow); animation:pulse 1.4s ease infinite; margin-right:6px;}
 @keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
 
@@ -569,14 +565,22 @@ input.code-input{
 }
 .ios-install-banner{
   position:fixed; bottom:max(18px, env(safe-area-inset-bottom)); left:16px; right:16px;
-  z-index:150; display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:13px;
+  z-index:150; display:flex; flex-direction:column; gap:8px; padding:12px 14px; border-radius:13px;
   background:rgba(255,255,255,.08); border:1.5px solid rgba(255,255,255,.2); color:var(--cream);
-  font-size:13px; font-weight:600; line-height:1.4; box-shadow:0 6px 20px rgba(0,0,0,.4);
+  font-size:13px; line-height:1.4; box-shadow:0 6px 20px rgba(0,0,0,.4);
 }
-.ios-install-banner button{
+.ios-install-row{ display:flex; align-items:center; gap:10px; }
+.ios-install-text{
+  flex:1; background:none; border:none; color:inherit; font:inherit; font-weight:600;
+  text-align:left; padding:0; cursor:pointer;
+}
+.ios-install-row .ios-install-dismiss{
   background:none; border:none; color:inherit; opacity:.7; font-size:20px; line-height:1;
   padding:2px 4px; cursor:pointer; flex-shrink:0;
 }
+.ios-install-steps{ margin:0; padding-left:18px; font-weight:400; font-size:12.5px; color:var(--cream-dim); }
+.ios-install-steps li{ margin-bottom:3px; }
+.ios-install-steps li:last-child{ margin-bottom:0; }
 
 /* ---------- Match history ---------- */
 .history-row{
@@ -621,8 +625,17 @@ input.code-input{
   </section>
   <button class="btn btn-primary install-btn" id="btn-install" style="display:none;">&#11015;&#65039; Install App</button>
   <div class="ios-install-banner" id="ios-install-banner" style="display:none;">
-    <span>Install this app: tap <strong>Share</strong> &#8593; then <strong>Add to Home Screen</strong>.</span>
-    <button type="button" id="btn-ios-install-dismiss" aria-label="Dismiss">&times;</button>
+    <div class="ios-install-row">
+      <button type="button" class="ios-install-text" id="ios-install-toggle" aria-expanded="false" aria-controls="ios-install-steps">
+        &#128241; Install this app &mdash; tap for how
+      </button>
+      <button type="button" class="ios-install-dismiss" id="btn-ios-install-dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+    <ol class="ios-install-steps" id="ios-install-steps" style="display:none;">
+      <li>Tap the <strong>Share</strong> icon <span aria-hidden="true">&#8593;</span> in your browser's toolbar.</li>
+      <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+      <li>Tap <strong>Add</strong> in the top-right corner.</li>
+    </ol>
   </div>
 
   <!-- RULES -->
@@ -709,6 +722,7 @@ input.code-input{
       <div id="local-name-rows" style="display:flex; flex-direction:column; gap:9px;"></div>
       <div>
         <span class="field-label">House rules</span>
+        <div style="display:flex; flex-direction:column; gap:10px;">
         <div class="toggle-row">
           <div class="txt"><strong>Three 6s forfeits turn</strong><span>Rolling three 6s in a row ends your turn with no move</span></div>
           <button class="switch" id="toggle-rule-three-sixes"></button>
@@ -716,6 +730,7 @@ input.code-input{
         <div class="toggle-row">
           <div class="txt"><strong>Blockades</strong><span>Two of your pieces on one square block opponents from passing</span></div>
           <button class="switch" id="toggle-rule-blockades"></button>
+        </div>
         </div>
       </div>
       <div class="spacer" style="flex:1;"></div>
@@ -762,6 +777,7 @@ input.code-input{
       </div>
       <div>
         <span class="field-label">House rules</span>
+        <div style="display:flex; flex-direction:column; gap:10px;">
         <div class="toggle-row">
           <div class="txt"><strong>Three 6s forfeits turn</strong><span>Applies to everyone at this table</span></div>
           <button class="switch" id="toggle-create-rule-three-sixes"></button>
@@ -769,6 +785,7 @@ input.code-input{
         <div class="toggle-row">
           <div class="txt"><strong>Blockades</strong><span>Two of a color's pieces on one square block opponents from passing</span></div>
           <button class="switch" id="toggle-create-rule-blockades"></button>
+        </div>
         </div>
       </div>
       <div class="spacer" style="flex:1;"></div>
@@ -827,7 +844,7 @@ input.code-input{
   <!-- GAME -->
   <section class="screen" id="screen-game">
     <div class="game-top">
-      <button class="icon-btn" id="btn-leave-game">&larr;</button>
+      <button class="icon-btn" id="btn-leave-game" title="Exit game" aria-label="Exit game">&larr;</button>
       <div class="turn-banner">
         <div class="dot" id="turn-dot"></div>
         <div class="info">
@@ -2055,8 +2072,10 @@ async function roomGet(code){
 // Always resolves (never throws). Result: {ok, unavailable, timedOut, forbidden}
 // Uses PATCH so concurrent writes don't clobber each other — only the fields
 // explicitly included in `data` are updated; everything else is left untouched.
-// Host-only: permanently remove a room (used by "Close room"). Guests
-// polling the lobby will see the room disappear and get bounced home.
+// Host-only: permanently remove a room. Not currently wired to any UI
+// button (the lobby's "Close room" option was removed); left in place in
+// case it's needed again. Guests polling the lobby would see the room
+// disappear and get bounced home.
 async function roomDelete(code){
   if(!storageAvailable()) return { ok:false, unavailable:true };
   try{
@@ -2558,11 +2577,6 @@ function renderLobbySeats(room){
     btn.disabled = !canStart;
     btn.addEventListener('click', function(){ startOnlineGame(room); });
     hostArea.appendChild(btn);
-    var closeLink = document.createElement('button');
-    closeLink.type='button'; closeLink.className='close-room-link';
-    closeLink.textContent = 'Close room';
-    closeLink.addEventListener('click', function(){ closeRoom(room.code); });
-    hostArea.appendChild(closeLink);
   } else {
     hostArea.style.display='none';
     guestArea.style.display='flex';
@@ -2591,16 +2605,7 @@ function removeSeat(code, color){
   });
 }
 
-function closeRoom(code){
-  if(!confirm('Close this room? Anyone still in it will be sent home.')) return;
-  roomDelete(code).then(function(res){
-    _stopLobbyLoop(); stopPolling();
-    App.mode=null;
-    clearOnlineSession();
-    show('screen-home');
-    toast(res && res.ok ? 'Room closed' : 'Room closed locally \u2014 server may still have it');
-  });
-}
+
 
 function startOnlineGame(roomSnapshot){
   var startBtn = document.querySelector('#lobby-host-area .btn');
@@ -3170,6 +3175,16 @@ document.getElementById('chat-form').addEventListener('submit', function(e){
 });
 
 document.getElementById('btn-leave-game').addEventListener('click', function(){
+  // A single stray tap on the back arrow used to quit instantly, no matter
+  // how far into a game you were — wiping local progress or abandoning an
+  // online seat with no warning. Confirm first, except when there's
+  // nothing at stake (game already over, or just spectating).
+  if(App.game && App.game.status==='playing' && !(App.mode==='online' && App.online.isSpectator)){
+    var msg = App.mode==='online'
+      ? 'Leave this game? Your seat will open up, and if you\u2019re gone too long the computer may take over your pieces.'
+      : 'Exit this game? Progress will be lost.';
+    if(!confirm(msg)) return;
+  }
   stopPolling();
   stopTitleFlash();
   gameConnFailCount = 0;
@@ -3388,6 +3403,18 @@ function setupIOSInstallHint(){
       banner.style.display='none';
       banner.dataset.eligible='0';
       saveJSON(IOS_INSTALL_DISMISS_KEY, true);
+    });
+  }
+  // The banner itself can't trigger installation — iOS deliberately doesn't
+  // expose that to JS — so tapping it reveals the manual steps instead of
+  // doing nothing, which is what made it look broken/dead before.
+  var toggleBtn = document.getElementById('ios-install-toggle');
+  var steps = document.getElementById('ios-install-steps');
+  if(toggleBtn && steps){
+    toggleBtn.addEventListener('click', function(){
+      var expanded = toggleBtn.getAttribute('aria-expanded')==='true';
+      toggleBtn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      steps.style.display = expanded ? 'none' : 'block';
     });
   }
 }
