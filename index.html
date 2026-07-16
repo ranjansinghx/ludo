@@ -520,6 +520,44 @@ input.code-input{
   100%{opacity:0; transform:translate(-50%,-40px) scale(1);}
 }
 
+/* ---------- Online chat ---------- */
+.icon-btn{ position:relative; }
+.chat-badge{
+  position:absolute; top:-3px; right:-3px; min-width:16px; height:16px; padding:0 4px;
+  border-radius:9px; background:var(--red); color:#fff; font-family:var(--font-mono);
+  font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 0 2px var(--felt-2);
+}
+.chat-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:270;
+  display:flex; align-items:flex-end;
+}
+.chat-panel{
+  width:100%; max-height:70vh; background:var(--felt-2); border-radius:20px 20px 0 0;
+  border:1.5px solid rgba(255,255,255,.12); border-bottom:none;
+  display:flex; flex-direction:column; padding:14px 14px max(14px, env(safe-area-inset-bottom));
+  box-shadow:var(--shadow-deep);
+}
+.chat-panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.chat-panel-head strong{font-family:var(--font-display); font-size:16px;}
+.chat-messages{flex:1; overflow-y:auto; min-height:120px; max-height:44vh; display:flex; flex-direction:column; gap:8px; padding:2px 2px 6px;}
+.chat-empty{color:var(--cream-dim); font-size:13px; text-align:center; margin:auto;}
+.chat-msg{max-width:82%; padding:8px 11px; border-radius:13px; font-size:13.5px; line-height:1.35; word-break:break-word;}
+.chat-msg .who{display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; margin-bottom:2px; opacity:.8;}
+.chat-msg.other{align-self:flex-start; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-bottom-left-radius:4px;}
+.chat-msg.own{align-self:flex-end; background:rgba(231,181,62,.22); border:1px solid rgba(231,181,62,.4); border-bottom-right-radius:4px;}
+.chat-input-row{display:flex; gap:8px; margin-top:10px;}
+.chat-input-row input{
+  flex:1; background:rgba(255,255,255,.07); border:1.5px solid rgba(255,255,255,.16);
+  border-radius:12px; padding:11px 13px; color:var(--cream); font-family:var(--font-body); font-size:14px;
+}
+.chat-input-row input::placeholder{ color:var(--cream-dim); }
+.chat-send-btn{
+  width:44px; height:44px; border-radius:12px; background:var(--yellow); color:#3a2705;
+  font-size:17px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700;
+}
+.chat-send-btn:active{ transform:scale(.94); }
+
 /* ---------- Install button / reconnect banner ---------- */
 .install-btn{
   position:fixed; bottom:max(18px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
@@ -651,6 +689,13 @@ input.code-input{
         <div class="chip-row" id="local-color-chips"></div>
       </div>
       <div id="local-name-rows" style="display:flex; flex-direction:column; gap:9px;"></div>
+      <div>
+        <span class="field-label">House rules</span>
+        <div class="toggle-row">
+          <div class="txt"><strong>Three 6s forfeits turn</strong><span>Rolling three 6s in a row ends your turn with no move</span></div>
+          <button class="switch" id="toggle-rule-three-sixes"></button>
+        </div>
+      </div>
       <div class="spacer" style="flex:1;"></div>
       <button class="btn btn-primary btn-block" id="btn-local-start">Start Game</button>
     </div>
@@ -691,6 +736,13 @@ input.code-input{
           <button id="create-seats-minus" type="button">&minus;</button>
           <div class="count" id="create-seats-count">4</div>
           <button id="create-seats-plus" type="button">+</button>
+        </div>
+      </div>
+      <div>
+        <span class="field-label">House rules</span>
+        <div class="toggle-row">
+          <div class="txt"><strong>Three 6s forfeits turn</strong><span>Applies to everyone at this table</span></div>
+          <button class="switch" id="toggle-create-rule-three-sixes"></button>
         </div>
       </div>
       <div class="spacer" style="flex:1;"></div>
@@ -735,6 +787,7 @@ input.code-input{
         <span class="field-label">Seats</span>
         <div class="seats" id="lobby-seats"></div>
       </div>
+      <p class="muted" id="lobby-rules-note" style="margin-top:-6px;"></p>
       <div class="spacer" style="flex:1;"></div>
       <div id="lobby-host-area"></div>
       <div id="lobby-guest-area" class="center-col muted" style="display:none;">
@@ -756,6 +809,7 @@ input.code-input{
         </div>
         <span class="turn-timer-badge" id="turn-timer"></span>
       </div>
+      <button class="icon-btn" id="btn-chat-toggle" style="display:none;">&#128172;<span class="chat-badge" id="chat-badge" style="display:none;">0</span></button>
       <button class="icon-btn" id="btn-log-toggle">&#128220;</button>
     </div>
 
@@ -782,6 +836,20 @@ input.code-input{
     </div>
 
     <div class="reaction-row" id="reaction-row" style="display:none;"></div>
+
+    <div class="chat-overlay" id="chat-overlay" style="display:none;">
+      <div class="chat-panel">
+        <div class="chat-panel-head">
+          <strong>Chat</strong>
+          <button class="icon-btn" id="btn-chat-close">&times;</button>
+        </div>
+        <div class="chat-messages" id="chat-messages"><div class="chat-empty">No messages yet &mdash; say hi!</div></div>
+        <form class="chat-input-row" id="chat-form">
+          <input type="text" id="chat-input" placeholder="Message the table&hellip;" maxlength="200" autocomplete="off">
+          <button type="submit" class="chat-send-btn" id="chat-send">&#10148;</button>
+        </form>
+      </div>
+    </div>
   </section>
 
   <!-- GAME OVER -->
@@ -837,7 +905,7 @@ function cellCoordFor(color, p){
 /* ======================================================================
    GAME ENGINE
    ====================================================================== */
-function newGame(colorList, names, aiColors, aiDifficulty){
+function newGame(colorList, names, aiColors, aiDifficulty, rules){
   var pieces = [];
   colorList.forEach(function(c){
     for(var i=0;i<4;i++) pieces.push({color:c, idx:i, p:-1});
@@ -847,6 +915,7 @@ function newGame(colorList, names, aiColors, aiDifficulty){
     names: Object.assign({}, names),
     aiColors: (aiColors||[]).slice(),
     aiDifficulty: Object.assign({}, aiDifficulty),
+    rules: Object.assign({ threeSixesForfeit:true }, rules||{}),
     pieces: pieces,
     turn: 0,
     dice: null,
@@ -858,7 +927,8 @@ function newGame(colorList, names, aiColors, aiDifficulty){
     winner: null,
     lastMove: null,
     justGotExtraTurn: false,
-    turnStartedAt: Date.now()
+    turnStartedAt: Date.now(),
+    afkSkips: {}
   };
 }
 
@@ -892,8 +962,11 @@ function engineRoll(game){
   game.consecutiveSixes = (roll===6) ? game.consecutiveSixes+1 : 0;
   var color = game.colors[game.turn];
   var nm = colorLabel(game,color);
+  game.afkSkips = game.afkSkips || {};
+  game.afkSkips[color] = 0;
 
-  if(game.consecutiveSixes>=3){
+  var threeSixesRuleOn = !game.rules || game.rules.threeSixesForfeit !== false;
+  if(threeSixesRuleOn && game.consecutiveSixes>=3){
     game.log.unshift(nm + ' rolled three 6s in a row \u2014 turn forfeited.');
     game.movable = [];
     game.justGotExtraTurn = false;
@@ -1024,8 +1097,8 @@ function chooseAIMove(game, color){
 var App = {
   screen:'screen-home',
   mode:null, // 'local' | 'online'
-  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set(), aiDifficulty:{} },
-  online:{ roomCode:null, myColor:null, myClientId:null, myName:null, isHost:false, pollHandle:null, joinedRoom:null, version:null, lastReactionTs:0 },
+  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set(), aiDifficulty:{}, rules:{ threeSixesForfeit:true } },
+  online:{ roomCode:null, myColor:null, myClientId:null, myName:null, isHost:false, pollHandle:null, joinedRoom:null, version:null, lastReactionTs:0, chatMessages:[], chatOpen:false, chatUnread:0, chatLastTs:0, _chatSynced:false },
   game:null,
   soundOn:true,
   hapticsOn:true,
@@ -1042,6 +1115,11 @@ var LOCAL_PREFS_KEY = 'ludo_local_prefs_v1';
 var STATS_KEY = 'ludo_stats_v1';
 var DEVICE_ID_KEY = 'ludo_device_id_v1';
 var ONLINE_SESSION_KEY = 'ludo_online_session_v1';
+// AFK handling: the host skips a stalled turn after AFK_SKIP_MS of inactivity.
+// Any other seated player can also force the skip after the longer
+// AFK_FALLBACK_MS, in case the host itself is the one who's gone.
+var AFK_SKIP_MS = 45000;
+var AFK_FALLBACK_MS = 90000;
 
 function loadJSON(key){
   try{
@@ -1087,13 +1165,15 @@ function loadLocalPrefs(){
   if(p.names && typeof p.names==='object') App.local.names = p.names;
   if(Array.isArray(p.ai)) App.local.ai = new Set(p.ai);
   if(p.aiDifficulty && typeof p.aiDifficulty==='object') App.local.aiDifficulty = p.aiDifficulty;
+  if(p.rules && typeof p.rules==='object') App.local.rules = Object.assign({ threeSixesForfeit:true }, p.rules);
 }
 function saveLocalPrefs(){
   saveJSON(LOCAL_PREFS_KEY, {
     selected: Array.from(App.local.selected),
     names: App.local.names,
     ai: Array.from(App.local.ai),
-    aiDifficulty: App.local.aiDifficulty
+    aiDifficulty: App.local.aiDifficulty,
+    rules: App.local.rules
   });
 }
 
@@ -1611,6 +1691,7 @@ function renderGame(){
   renderDice();
   renderLog();
   renderReactionRow();
+  renderChatToggle();
 
   var timerEl = document.getElementById('turn-timer');
   if(timerEl){
@@ -1644,6 +1725,7 @@ function renderGame(){
     setTimeout(function(){ sfxWin(); vibrate([40,60,40,60,160]); show('screen-gameover'); launchConfetti(); }, 700);
   } else {
     maybeRunAITurn();
+    maybeRunOnlineAITurn();
   }
 }
 
@@ -1759,12 +1841,20 @@ function renderLocalSetup(){
     }
     namesEl.appendChild(row);
   });
+
+  document.getElementById('toggle-rule-three-sixes').classList.toggle('on', App.local.rules.threeSixesForfeit!==false);
 }
 
 document.getElementById('btn-local').addEventListener('click', function(){
   App.mode='local';
   renderLocalSetup();
   show('screen-local-setup');
+});
+
+document.getElementById('toggle-rule-three-sixes').addEventListener('click', function(){
+  App.local.rules.threeSixesForfeit = !(App.local.rules.threeSixesForfeit!==false);
+  saveLocalPrefs();
+  renderLocalSetup();
 });
 
 document.getElementById('btn-local-start').addEventListener('click', function(){
@@ -1774,7 +1864,7 @@ document.getElementById('btn-local-start').addEventListener('click', function(){
   colors.forEach(function(c){ names[c] = (App.local.names[c]||'').trim() || COLORS[c].label; });
   var aiColors = colors.filter(function(c){ return App.local.ai.has(c); });
   saveLocalPrefs();
-  App.game = newGame(colors, names, aiColors, App.local.aiDifficulty);
+  App.game = newGame(colors, names, aiColors, App.local.aiDifficulty, App.local.rules);
   recordGameStarted();
   document.getElementById('log-card').style.display='none';
   renderGame();
@@ -1917,7 +2007,7 @@ function stopPolling(){
 /* ======================================================================
    ONLINE MODE: create room
    ====================================================================== */
-var createState = { color:'red', seats:4 };
+var createState = { color:'red', seats:4, rules:{ threeSixesForfeit:true } };
 
 function renderCreateColorChips(){
   var el = document.getElementById('create-color-chips');
@@ -1936,6 +2026,10 @@ document.getElementById('create-seats-minus').addEventListener('click', function
 });
 document.getElementById('create-seats-plus').addEventListener('click', function(){
   if(createState.seats<4){ createState.seats++; document.getElementById('create-seats-count').textContent = createState.seats; }
+});
+document.getElementById('toggle-create-rule-three-sixes').addEventListener('click', function(){
+  createState.rules.threeSixesForfeit = !(createState.rules.threeSixesForfeit!==false);
+  document.getElementById('toggle-create-rule-three-sixes').classList.toggle('on', createState.rules.threeSixesForfeit!==false);
 });
 
 var onlineCheckFailCount = 0;
@@ -1975,6 +2069,7 @@ function checkOnlineAvailability(){
 document.getElementById('btn-create-room').addEventListener('click', function(){
   renderCreateColorChips();
   document.getElementById('create-seats-count').textContent = createState.seats;
+  document.getElementById('toggle-create-rule-three-sixes').classList.toggle('on', createState.rules.threeSixesForfeit!==false);
   show('screen-create');
 });
 document.getElementById('btn-join-room').addEventListener('click', function(){ show('screen-join'); });
@@ -1998,6 +2093,7 @@ document.getElementById('btn-create-confirm').addEventListener('click', async fu
     seats: [{ color: createState.color, clientId: App.online.myClientId, name: name }],
     status: 'lobby',
     game: null,
+    rules: { threeSixesForfeit: createState.rules.threeSixesForfeit!==false },
     version: 1,
     updatedAt: Date.now()
   };
@@ -2158,11 +2254,17 @@ function sanitizeGame(game){
   if(typeof game.names !== 'object' || game.names === null) game.names = {};
   if(typeof game.turn !== 'number') game.turn = 0;
   if(typeof game.status !== 'string') game.status = 'playing';
+  if(typeof game.afkSkips !== 'object' || game.afkSkips === null) game.afkSkips = {};
+  if(typeof game.rules !== 'object' || game.rules === null) game.rules = { threeSixesForfeit:true };
   return game;
 }
 
 function enterLobby(){
   document.getElementById('lobby-code').textContent = App.online.roomCode;
+  App.online.chatMessages = [];
+  App.online.chatUnread = 0;
+  App.online._chatSynced = false;
+  App.online.chatLastTs = 0;
   show('screen-lobby');
   _stopLobbyLoop();
   stopPolling();
@@ -2251,6 +2353,11 @@ function renderLobbySeats(room){
     }
     el.appendChild(div);
   }
+  var rulesNote = document.getElementById('lobby-rules-note');
+  if(rulesNote){
+    var threeSixesOn = !room.rules || room.rules.threeSixesForfeit !== false;
+    rulesNote.textContent = 'House rule: three 6s in a row ' + (threeSixesOn ? 'forfeits the turn.' : 'is allowed \u2014 keep rolling.');
+  }
   var hostArea = document.getElementById('lobby-host-area');
   var guestArea = document.getElementById('lobby-guest-area');
   if(App.online.isHost){
@@ -2328,7 +2435,7 @@ function startOnlineGame(roomSnapshot){
     var colors = room.seats.map(function(s){ return s.color; });
     var names = {};
     room.seats.forEach(function(s){ names[s.color] = s.name; });
-    var game = newGame(colors, names);
+    var game = newGame(colors, names, undefined, undefined, room.rules);
 
     // Write full room object with PUT — most reliable, no ambiguity
     var fullRoom = {
@@ -2396,14 +2503,99 @@ document.addEventListener('visibilitychange', function(){
   }
 });
 
+/* ---------- AFK handling ----------
+   A stalled online turn (tab closed, phone locked, player just wandered off)
+   would otherwise freeze the game for everyone else forever. The host
+   auto-skips a turn that's sat idle past AFK_SKIP_MS; any other seated
+   player can force the same skip after the longer AFK_FALLBACK_MS, which
+   covers the case where the host itself is the one who's gone. Two
+   consecutive skips for the same color hand their pieces to the computer
+   (reusing the existing AI engine) so the game can keep moving without
+   that player. Rolling again at any point resets their skip count. */
+function maybeAutoSkipAFKTurn(){
+  if(App.mode!=='online' || !App.game || App.game.status!=='playing') return false;
+  if(onlineWriting || App.animating) return false;
+  var game = App.game;
+  var color = game.colors[game.turn];
+  if(color === App.online.myColor) return false; // never act on our own turn
+  if(game.aiColors && game.aiColors.indexOf(color)!==-1) return false; // already AI, nothing to skip
+  if(!game.turnStartedAt) return false;
+  var elapsed = Date.now() - game.turnStartedAt;
+  if(App.online.isHost && elapsed >= AFK_SKIP_MS){
+    performAFKSkip(color);
+    return true;
+  }
+  if(!App.online.isHost && elapsed >= AFK_FALLBACK_MS){
+    performAFKSkip(color);
+    return true;
+  }
+  return false;
+}
+function performAFKSkip(color){
+  if(App.mode!=='online' || onlineWriting) return;
+  var game = App.game;
+  if(!game || game.status!=='playing') return;
+  if(game.colors[game.turn] !== color) return; // stale — turn already moved on
+  game.afkSkips = game.afkSkips || {};
+  var count = (game.afkSkips[color]||0) + 1;
+  var nm = colorLabel(game, color);
+  var handedToAI = count >= 2;
+  if(handedToAI){
+    game.aiColors = (game.aiColors||[]).slice();
+    if(game.aiColors.indexOf(color)===-1) game.aiColors.push(color);
+    game.aiDifficulty = Object.assign({}, game.aiDifficulty);
+    if(!game.aiDifficulty[color]) game.aiDifficulty[color] = 'easy';
+    game.afkSkips[color] = 0;
+    game.log.unshift(nm + ' was away too long \u2014 the computer is now playing their pieces.');
+  } else {
+    game.afkSkips[color] = count;
+    game.log.unshift(nm + ' was away too long \u2014 turn skipped.');
+  }
+  endTurn(game);
+  renderGame();
+  syncPushGame();
+}
+
+// Host-only: runs the AI heuristic for any color that's been handed to the
+// computer (whether picked as an AI seat at setup, or handed over mid-game
+// by performAFKSkip). maybeRunAITurn() only fires in local mode, so this is
+// the online equivalent — it drives the engine directly and pushes the
+// result, since the acting client's own color isn't the AI's color and so
+// wouldn't pass the normal canActNow() gate.
+var onlineAiTimer = null;
+function maybeRunOnlineAITurn(){
+  if(App.mode!=='online' || !App.online.isHost || !App.game || App.game.status!=='playing') return;
+  var color = App.game.colors[App.game.turn];
+  if(!App.game.aiColors || App.game.aiColors.indexOf(color)===-1) return;
+  if(App.animating || onlineWriting || onlineAiTimer) return;
+  onlineAiTimer = setTimeout(function(){
+    onlineAiTimer = null;
+    if(!App.game || App.game.status!=='playing' || App.animating || onlineWriting) return;
+    if(App.game.colors[App.game.turn]!==color) return; // stale, turn already moved on
+    if(!App.game.diceRolled){
+      engineRoll(App.game);
+    } else {
+      var idx = chooseAIMove(App.game, color);
+      if(idx!==null && App.game.movable.indexOf(idx)!==-1){
+        engineMove(App.game, idx);
+        if(App.game.log[0] && App.game.log[0].indexOf('captured')!==-1){ sfxCapture(); vibrate([25,35,25]); }
+      }
+    }
+    renderGame();
+    syncPushGame();
+  }, 700);
+}
+
 function pollGameOnce(){
   if(onlineWriting || App.animating) return;
   if(App.screen!=='screen-game' && App.screen!=='screen-gameover') return;
+  if(maybeAutoSkipAFKTurn()) return; // just wrote a skip — next tick will pick up the fresh state
   roomGet(App.online.roomCode).then(function(res){
     if(res.timedOut || res.unavailable) return; // transient — try again next tick
     var room = res.room;
     if(!room) return;
     handleIncomingReaction(room);
+    handleIncomingChat(room);
     if(!room.game) return;
     if(onlineWriting || App.animating) return;
     var incomingVersion = room.version || 0;
@@ -2466,6 +2658,105 @@ function showReactionBubble(emoji){
   setTimeout(function(){ el.remove(); }, 1900);
 }
 
+// ---------- Text chat ----------
+// Chat rides on its own `chat` field (a capped list of messages), separate
+// from `game`/`version`, so sending a message can never clash with a move
+// the way editing `game` directly would. Sends are a read-modify-write
+// (roomGet the latest list, append, roomSet it back) — under a rare
+// simultaneous send from two players the loser's message can be dropped,
+// same trade-off the rest of this app already accepts for room writes.
+var CHAT_HISTORY_LIMIT = 40;
+var chatSending = false;
+function renderChatToggle(){
+  var btn = document.getElementById('btn-chat-toggle');
+  if(!btn) return;
+  btn.style.display = (App.mode==='online' && App.game && App.game.status==='playing') ? 'flex' : 'none';
+  updateChatBadge();
+}
+function handleIncomingChat(room){
+  var incoming = (room.chat && Array.isArray(room.chat.messages)) ? room.chat.messages : [];
+  if(!incoming.length) return;
+  var lastIncoming = incoming[incoming.length-1];
+  if(!lastIncoming || lastIncoming.ts <= App.online.chatLastTs) return; // nothing new
+  var isFirstSync = !App.online._chatSynced;
+  var previousLastTs = App.online.chatLastTs;
+  App.online._chatSynced = true;
+  App.online.chatLastTs = lastIncoming.ts;
+  App.online.chatMessages = incoming.slice(-CHAT_HISTORY_LIMIT);
+  if(App.online.chatOpen){
+    renderChatMessages();
+  } else if(!isFirstSync){
+    var newFromOthers = incoming.filter(function(m){ return m.ts > previousLastTs && m.from !== App.online.myColor; }).length;
+    if(newFromOthers>0){
+      App.online.chatUnread += newFromOthers;
+      updateChatBadge();
+      vibrate(8);
+    }
+  }
+}
+function updateChatBadge(){
+  var badge = document.getElementById('chat-badge');
+  if(!badge) return;
+  if(App.online.chatUnread>0){
+    badge.textContent = App.online.chatUnread>9 ? '9+' : String(App.online.chatUnread);
+    badge.style.display='flex';
+  } else {
+    badge.style.display='none';
+  }
+}
+function renderChatMessages(){
+  var wrap = document.getElementById('chat-messages');
+  if(!wrap) return;
+  var msgs = App.online.chatMessages;
+  if(!msgs.length){
+    wrap.innerHTML = '<div class="chat-empty">No messages yet &mdash; say hi!</div>';
+    return;
+  }
+  wrap.innerHTML = msgs.map(function(m){
+    var own = m.from === App.online.myColor;
+    return '<div class="chat-msg '+(own?'own':'other')+'">' +
+      (own ? '' : '<span class="who" style="color:'+COLORS[m.from].hex+'">'+escapeHtml(m.name||colorLabelForChat(m.from))+'</span>') +
+      escapeHtml(m.text) + '</div>';
+  }).join('');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+function colorLabelForChat(color){
+  return (App.game && colorLabel(App.game, color)) || (COLORS[color] && COLORS[color].label) || color;
+}
+function openChatPanel(){
+  if(App.mode!=='online') return;
+  App.online.chatOpen = true;
+  App.online.chatUnread = 0;
+  updateChatBadge();
+  document.getElementById('chat-overlay').style.display='flex';
+  renderChatMessages();
+  setTimeout(function(){ document.getElementById('chat-input').focus(); }, 50);
+}
+function closeChatPanel(){
+  App.online.chatOpen = false;
+  document.getElementById('chat-overlay').style.display='none';
+}
+function sendChatMessage(text){
+  text = (text||'').trim();
+  if(!text || App.mode!=='online' || !App.online.roomCode || chatSending) return;
+  text = text.slice(0, 200);
+  chatSending = true;
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){ chatSending=false; toast('Message not sent \u2014 try again'); return; }
+    var existing = (res.room.chat && Array.isArray(res.room.chat.messages)) ? res.room.chat.messages : [];
+    var msg = { from: App.online.myColor, name: App.online.myName, text: text, ts: Date.now() };
+    var updated = existing.concat([msg]).slice(-CHAT_HISTORY_LIMIT);
+    roomSet(App.online.roomCode, { chat: { messages: updated } }).then(function(setRes){
+      chatSending = false;
+      if(!setRes || !setRes.ok){ toast('Message not sent \u2014 try again'); return; }
+      App.online.chatMessages = updated;
+      App.online.chatLastTs = msg.ts;
+      App.online._chatSynced = true;
+      renderChatMessages();
+    });
+  }).catch(function(){ chatSending=false; toast('Message not sent \u2014 try again'); });
+}
+
 // If the incoming synced state shows a single piece advanced from where we last saw it
 // (i.e. an opponent just moved), hop it into place the same way local moves animate.
 // Anything unexpected (first sync, big jump, mismatch) just falls back to a plain snap.
@@ -2521,7 +2812,7 @@ function onlineRematch(){
     var colors = room.seats.map(function(s){ return s.color; });
     var names = {};
     room.seats.forEach(function(s){ names[s.color] = s.name; });
-    var game = newGame(colors, names);
+    var game = newGame(colors, names, undefined, undefined, room.rules);
     var patch = { game: game, status:'playing', version:(room.version||0)+1, updatedAt: Date.now() };
     roomSet(room.code, patch).then(function(setRes){
       if(!setRes || !setRes.ok){ toast('Could not start rematch \u2014 try again'); return; }
@@ -2629,8 +2920,29 @@ document.getElementById('btn-log-toggle').addEventListener('click', function(){
   card.style.display = (card.style.display==='none' || !card.style.display) ? 'block' : 'none';
 });
 
+document.getElementById('btn-chat-toggle').addEventListener('click', function(){
+  openChatPanel();
+});
+document.getElementById('btn-chat-close').addEventListener('click', function(){
+  closeChatPanel();
+});
+document.getElementById('chat-overlay').addEventListener('click', function(e){
+  if(e.target.id==='chat-overlay') closeChatPanel(); // tap the dimmed backdrop to dismiss
+});
+document.getElementById('chat-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  var input = document.getElementById('chat-input');
+  sendChatMessage(input.value);
+  input.value='';
+});
+
 document.getElementById('btn-leave-game').addEventListener('click', function(){
   stopPolling();
+  closeChatPanel();
+  App.online.chatMessages = [];
+  App.online.chatUnread = 0;
+  App.online._chatSynced = false;
+  App.online.chatLastTs = 0;
   App.game = null;
   App.mode = null;
   clearOnlineSession();
@@ -2639,6 +2951,11 @@ document.getElementById('btn-leave-game').addEventListener('click', function(){
 
 document.getElementById('btn-gameover-home').addEventListener('click', function(){
   stopPolling();
+  closeChatPanel();
+  App.online.chatMessages = [];
+  App.online.chatUnread = 0;
+  App.online._chatSynced = false;
+  App.online.chatLastTs = 0;
   App.game = null;
   App.mode = null;
   clearOnlineSession();
@@ -2673,7 +2990,7 @@ document.getElementById('btn-play-again').addEventListener('click', function(){
   var names = App.game.names;
   var aiColors = App.game.aiColors ? App.game.aiColors.slice() : [];
   var aiDifficulty = App.game.aiDifficulty ? Object.assign({}, App.game.aiDifficulty) : {};
-  App.game = newGame(colors, names, aiColors, aiDifficulty);
+  App.game = newGame(colors, names, aiColors, aiDifficulty, App.game.rules);
   recordGameStarted();
   document.getElementById('log-card').style.display='none';
   renderGame();
