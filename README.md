@@ -24,7 +24,10 @@ No build step, no dependencies to install — the app is `index.html` plus a sma
 - **Working invite links** — the room lobby's "Share invite link" button shares (or copies) an actual link with the room code baked in (`?room=CODE`); opening it drops your friend straight into the join screen with the code already filled in, instead of just handing them a code to type in by hand.
 - **iOS install hint** — since iOS doesn't support the automatic install prompt used on Android/desktop, iPhone/iPad visitors instead see a small dismissible banner pointing at the manual Share → Add to Home Screen steps.
 - **Confirm before exiting** — the back arrow on the game screen asks for confirmation before quitting a game in progress (with a heads-up that leaving an online game opens your seat up), so a stray tap can't wipe out a match by accident. Games that are already finished, or that you're only spectating, exit immediately with no prompt.
+<<<<<<< HEAD
 - **Phone back gesture/button navigates within the app** — swiping back (or pressing a hardware/software back button) now steps back through the app's own screens one at a time — same confirmation prompts as tapping the on-screen back arrow — instead of exiting the app outright. It only exits once you're back at the home screen with nothing left to go back to.
+=======
+>>>>>>> a8b59a86fc5cae4ae51522d87e79096df9075a7a
 - **Stats and game history** — a settings-screen record of games played/won and a short list of recent results (winner, mode, and how long ago), stored locally on your device with a one-tap reset.
 - **Share result** — after a game, share the result via the OS share sheet (or copy it to the clipboard as a fallback) to post to friends.
 - **Sound, haptics, and accessibility toggles** — optional sound effects and vibration feedback on rolls/captures/wins, a light/dark theme switch, and a colorblind-friendly mode that adds distinct shapes to each color's pieces.

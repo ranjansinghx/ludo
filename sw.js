@@ -1,5 +1,9 @@
 // Bump this when index.html changes so clients pick up the new shell.
+<<<<<<< HEAD
 var CACHE_NAME = 'ludo-shell-v7';
+=======
+var CACHE_NAME = 'ludo-shell-v5';
+>>>>>>> a8b59a86fc5cae4ae51522d87e79096df9075a7a
 var SHELL_FILES = [
   './',
   './index.html',
