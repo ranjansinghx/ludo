@@ -218,6 +218,7 @@ input.code-input{
 
 /* ---------- Setup screens ---------- */
 .setup-body{flex:1; display:flex; flex-direction:column; gap:22px;}
+.spacer{flex:1; max-height:32px;}
 .player-row{
   display:flex; align-items:center; gap:11px; padding:11px 12px; flex-wrap:wrap;
   background:rgba(255,255,255,.05); border-radius:13px; border:1.5px solid rgba(255,255,255,.08);
@@ -733,7 +734,7 @@ input.code-input{
         </div>
         </div>
       </div>
-      <div class="spacer" style="flex:1;"></div>
+      <div class="spacer"></div>
       <button class="btn btn-primary btn-block" id="btn-local-start">Start Game</button>
     </div>
   </section>
@@ -788,7 +789,7 @@ input.code-input{
         </div>
         </div>
       </div>
-      <div class="spacer" style="flex:1;"></div>
+      <div class="spacer"></div>
       <button class="btn btn-primary btn-block" id="btn-create-confirm">Create Room</button>
     </div>
   </section>
@@ -810,7 +811,7 @@ input.code-input{
         <div class="chip-row" id="join-color-chips"></div>
       </div>
       <p class="muted" id="join-status"></p>
-      <div class="spacer" style="flex:1;"></div>
+      <div class="spacer"></div>
       <button class="btn btn-secondary btn-block" id="btn-join-check">Find Room</button>
       <button class="btn btn-primary btn-block" id="btn-join-confirm" style="display:none; margin-top:10px;">Join Room</button>
       <button class="btn btn-secondary btn-block" id="btn-spectate-confirm" style="display:none; margin-top:10px;">&#128065; Watch as Spectator</button>
@@ -832,7 +833,7 @@ input.code-input{
         <div class="seats" id="lobby-seats"></div>
       </div>
       <p class="muted" id="lobby-rules-note" style="margin-top:-6px;"></p>
-      <div class="spacer" style="flex:1;"></div>
+      <div class="spacer"></div>
       <div id="lobby-host-area"></div>
       <div id="lobby-guest-area" class="center-col muted" style="display:none;">
   <span class="waiting-pulse"></span>Waiting for the host to start the game&hellip;
