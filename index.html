@@ -306,11 +306,7 @@ input.code-input{
 }
 .piece{
   width:78%; aspect-ratio:1/1; border-radius:50%;
-<<<<<<< HEAD
   box-shadow: 0 2px 0 rgba(0,0,0,.3), inset 0 -3px 4px rgba(0,0,0,.25), inset 0 2px 2px rgba(255,255,255,.35), 0 0 0 2px rgba(255,255,255,.5);
-=======
-  box-shadow: 0 2px 0 rgba(0,0,0,.3), inset 0 -3px 4px rgba(0,0,0,.25), inset 0 2px 2px rgba(255,255,255,.35);
->>>>>>> a8b59a86fc5cae4ae51522d87e79096df9075a7a
   display:flex; align-items:center; justify-content:center;
   position:relative; z-index:1;
 }
@@ -1378,7 +1374,6 @@ loadLocalPrefs();
 applyTheme();
 applyShapes();
 
-<<<<<<< HEAD
 // `fromHistoryNav` is true only when show() is being called in reaction to
 // a back gesture/browser popstate (see performBackNavigation below) — in
 // that case the browser has already moved the history position itself, so
@@ -1389,17 +1384,11 @@ function show(id, fromHistoryNav){
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
   var changedScreen = App.screen !== id;
-=======
-function show(id){
-  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
-  document.getElementById(id).classList.add('active');
->>>>>>> a8b59a86fc5cae4ae51522d87e79096df9075a7a
   App.screen = id;
   var installBtn = document.getElementById('btn-install');
   if(installBtn) installBtn.style.display = (App.installPromptEvent && id==='screen-home') ? 'block' : 'none';
   var iosBanner = document.getElementById('ios-install-banner');
   if(iosBanner && iosBanner.dataset.eligible==='1') iosBanner.style.display = (id==='screen-home') ? 'flex' : 'none';
-<<<<<<< HEAD
   if(window.history && typeof history.pushState==='function'){
     if(fromHistoryNav){
       history.replaceState({screen:id}, '', '');
@@ -1460,13 +1449,6 @@ window.addEventListener('popstate', function(e){
 document.querySelectorAll('[data-back]').forEach(function(b){
   b.addEventListener('click', function(){
     history.back();
-=======
-}
-document.querySelectorAll('[data-back]').forEach(function(b){
-  b.addEventListener('click', function(){
-    stopPolling();
-    show(b.getAttribute('data-back'));
->>>>>>> a8b59a86fc5cae4ae51522d87e79096df9075a7a
   });
 });
 
@@ -2769,16 +2751,7 @@ document.getElementById('btn-copy-code').addEventListener('click', function(){
 });
 
 document.getElementById('lobby-back').addEventListener('click', function(){
-<<<<<<< HEAD
   history.back();
-=======
-  _stopLobbyLoop();
-  stopPolling();
-  App.mode=null;
-  App.online.isSpectator=false;
-  clearOnlineSession();
-  show('screen-online-menu');
->>>>>>> a8b59a86fc5cae4ae51522d87e79096df9075a7a
 });
 
 /* ======================================================================
@@ -3259,55 +3232,11 @@ document.getElementById('chat-form').addEventListener('submit', function(e){
 });
 
 document.getElementById('btn-leave-game').addEventListener('click', function(){
-<<<<<<< HEAD
   history.back();
 });
 
 document.getElementById('btn-gameover-home').addEventListener('click', function(){
   history.back();
-=======
-  // A single stray tap on the back arrow used to quit instantly, no matter
-  // how far into a game you were — wiping local progress or abandoning an
-  // online seat with no warning. Confirm first, except when there's
-  // nothing at stake (game already over, or just spectating).
-  if(App.game && App.game.status==='playing' && !(App.mode==='online' && App.online.isSpectator)){
-    var msg = App.mode==='online'
-      ? 'Leave this game? Your seat will open up, and if you\u2019re gone too long the computer may take over your pieces.'
-      : 'Exit this game? Progress will be lost.';
-    if(!confirm(msg)) return;
-  }
-  stopPolling();
-  stopTitleFlash();
-  gameConnFailCount = 0;
-  setGameConnBanner(false);
-  closeChatPanel();
-  App.online.chatMessages = [];
-  App.online.chatUnread = 0;
-  App.online._chatSynced = false;
-  App.online.chatLastTs = 0;
-  App.online.isSpectator = false;
-  App.game = null;
-  App.mode = null;
-  clearOnlineSession();
-  show('screen-home');
-});
-
-document.getElementById('btn-gameover-home').addEventListener('click', function(){
-  stopPolling();
-  stopTitleFlash();
-  gameConnFailCount = 0;
-  setGameConnBanner(false);
-  closeChatPanel();
-  App.online.chatMessages = [];
-  App.online.chatUnread = 0;
-  App.online._chatSynced = false;
-  App.online.chatLastTs = 0;
-  App.online.isSpectator = false;
-  App.game = null;
-  App.mode = null;
-  clearOnlineSession();
-  show('screen-home');
->>>>>>> a8b59a86fc5cae4ae51522d87e79096df9075a7a
 });
 
 document.getElementById('btn-share-result').addEventListener('click', function(){
