@@ -63,6 +63,9 @@
 :root[data-theme="light"] .back-btn,
 :root[data-theme="light"] .icon-btn,
 :root[data-theme="light"] .turn-banner,
+:root[data-theme="light"] .reaction-btn,
+:root[data-theme="light"] .diff-pill,
+:root[data-theme="light"] .theme-pick,
 :root[data-theme="light"] .toggle-row{
   background:rgba(0,0,0,.035); border-color:rgba(0,0,0,.1);
 }
@@ -192,12 +195,14 @@ input.code-input{
 /* ---------- Setup screens ---------- */
 .setup-body{flex:1; display:flex; flex-direction:column; gap:22px;}
 .player-row{
-  display:flex; align-items:center; gap:11px; padding:11px 12px;
+  display:flex; align-items:center; gap:11px; padding:11px 12px; flex-wrap:wrap;
   background:rgba(255,255,255,.05); border-radius:13px; border:1.5px solid rgba(255,255,255,.08);
 }
 .player-row .dot{width:16px;height:16px;border-radius:50%; flex-shrink:0; box-shadow: inset 0 -2px 2px rgba(0,0,0,.25);}
-.player-row input{background:transparent; border:none; padding:4px 0; font-size:15px; font-weight:600; color:var(--cream); width:100%;}
+.player-row input{background:transparent; border:none; padding:4px 0; font-size:15px; font-weight:600; color:var(--cream); flex:1 1 60px; min-width:0;}
 .player-row input:focus{outline:none;}
+.player-row .diff-row{flex-basis:100%; margin-left:26px;}
+.player-row .diff-row{flex-basis:100%; margin-left:26px;}
 .stepper{display:flex; align-items:center; gap:14px; justify-content:center;}
 .stepper button{
   width:42px;height:42px;border-radius:50%; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16);
@@ -406,7 +411,6 @@ input.code-input{
 .stat-box .lbl{font-size:11.5px; color:var(--cream-dim); text-transform:uppercase; letter-spacing:.8px; margin-top:2px;}
 
 /* ---------- AI toggle (local setup) ---------- */
-.player-row{display:flex; align-items:center; gap:10px;}
 .ai-toggle{
   flex-shrink:0; padding:9px 13px; border-radius:11px; font-size:12.5px; font-weight:700;
   background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.14); color:var(--cream-dim);
@@ -435,6 +439,75 @@ input.code-input{
 .rule-item .rule-txt strong{display:block; font-family:var(--font-display); font-size:15px; margin-bottom:3px;}
 .rule-item .rule-txt p{font-size:13.5px; color:var(--cream-dim); line-height:1.5;}
 
+/* ---------- Colorblind shape markers ---------- */
+.piece-shape{
+  display:none; position:absolute; inset:0; align-items:center; justify-content:center;
+  font-size:46%; color:rgba(255,255,255,.92); text-shadow:0 1px 2px rgba(0,0,0,.5); pointer-events:none;
+}
+:root[data-shapes="on"] .piece-shape{ display:flex; }
+
+/* ---------- Destination move preview ---------- */
+.dest-marker{
+  position:absolute; width:6.6667%; height:6.6667%; z-index:15; pointer-events:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.dest-marker::after{
+  content:''; width:62%; height:62%; border-radius:50%;
+  border:2.5px dashed rgba(231,181,62,.85);
+  animation: destPulse 1.4s ease-in-out infinite;
+}
+@keyframes destPulse{0%,100%{opacity:.55; transform:scale(.92);} 50%{opacity:1; transform:scale(1);}}
+
+/* ---------- AI difficulty pill ---------- */
+.diff-row{display:flex; gap:6px; margin-left:auto;}
+.diff-pill{
+  padding:6px 10px; border-radius:9px; font-size:11px; font-weight:700;
+  background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.14); color:var(--cream-dim);
+}
+.diff-pill.selected{ background:rgba(231,181,62,.18); border-color:rgba(231,181,62,.5); color:var(--yellow); }
+
+/* ---------- Online reactions ---------- */
+.reaction-row{display:flex; justify-content:center; gap:10px; margin-top:12px;}
+.reaction-btn{
+  width:42px; height:42px; border-radius:50%; font-size:19px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  display:flex; align-items:center; justify-content:center;
+}
+.reaction-btn:active{ transform:scale(.9); }
+.reaction-bubble{
+  position:fixed; left:50%; top:32%; transform:translate(-50%,0); z-index:260;
+  font-size:44px; pointer-events:none; opacity:0;
+  animation: reactionFloat 1.8s ease forwards;
+}
+@keyframes reactionFloat{
+  0%{opacity:0; transform:translate(-50%,20px) scale(.6);}
+  15%{opacity:1; transform:translate(-50%,0) scale(1.15);}
+  30%{transform:translate(-50%,0) scale(1);}
+  80%{opacity:1;}
+  100%{opacity:0; transform:translate(-50%,-40px) scale(1);}
+}
+
+/* ---------- Install button / reconnect banner ---------- */
+.install-btn{
+  position:fixed; bottom:max(18px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+  z-index:150; box-shadow:0 6px 20px rgba(0,0,0,.4);
+}
+.reconnect-banner{
+  display:flex; align-items:center; gap:9px; padding:12px 14px; border-radius:13px; margin-bottom:14px;
+  background:rgba(63,127,214,.14); border:1.5px solid rgba(63,127,214,.4); color:#cfe0fb; font-size:13.5px; font-weight:600;
+}
+
+/* ---------- Match history ---------- */
+.history-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0;
+  border-top:1px solid rgba(255,255,255,.06); font-size:13px;
+}
+.history-row:first-child{border-top:none;}
+.history-row .who{display:flex; align-items:center; gap:8px; font-weight:600;}
+.history-row .who .dot{width:10px;height:10px;border-radius:50%;}
+.history-row .when{color:var(--cream-dim); font-size:11.5px;}
+
+
 </style>
 </head>
 <body>
@@ -447,6 +520,9 @@ input.code-input{
       <button class="back-btn" id="btn-open-settings" title="Settings">&#9881;&#65039;</button>
     </div>
     <div class="home-hero">
+      <div class="reconnect-banner" id="reconnect-banner" style="display:none;">
+        <span class="waiting-pulse"></span><span id="reconnect-text">Reconnecting to your game&hellip;</span>
+      </div>
       <div class="logo-row"><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div></div>
       <h1>Ludo</h1>
       <p class="tag">Race all four of your pieces home. Roll, capture, and don't get sent back to start.</p>
@@ -462,6 +538,7 @@ input.code-input{
       </div>
     </div>
   </section>
+  <button class="btn btn-primary install-btn" id="btn-install" style="display:none;">&#11015;&#65039; Install App</button>
 
   <!-- RULES -->
   <section class="screen" id="screen-rules">
@@ -510,12 +587,23 @@ input.code-input{
         </div>
       </div>
       <div class="settings-section">
+        <span class="field-label">Accessibility</span>
+        <div class="toggle-row">
+          <div class="txt"><strong>Shape markers</strong><span>Add a shape to each piece, not just color</span></div>
+          <button class="switch" id="toggle-shapes"></button>
+        </div>
+      </div>
+      <div class="settings-section">
         <span class="field-label">Stats</span>
         <div class="stats-grid">
           <div class="stat-box"><div class="num" id="stat-played">0</div><div class="lbl">Games played</div></div>
           <div class="stat-box"><div class="num" id="stat-won">0</div><div class="lbl">Games won</div></div>
         </div>
         <button class="btn btn-secondary btn-block btn-sm" id="btn-reset-stats" style="margin-top:2px;">Reset stats</button>
+      </div>
+      <div class="settings-section">
+        <span class="field-label">Recent games</span>
+        <div class="card" id="history-card"><div class="muted" id="history-empty">No games yet.</div></div>
       </div>
     </div>
   </section>
@@ -658,6 +746,8 @@ input.code-input{
       <span class="field-label">Game log</span>
       <div id="log-lines"></div>
     </div>
+
+    <div class="reaction-row" id="reaction-row" style="display:none;"></div>
   </section>
 
   <!-- GAME OVER -->
@@ -711,7 +801,7 @@ function cellCoordFor(color, p){
 /* ======================================================================
    GAME ENGINE
    ====================================================================== */
-function newGame(colorList, names, aiColors){
+function newGame(colorList, names, aiColors, aiDifficulty){
   var pieces = [];
   colorList.forEach(function(c){
     for(var i=0;i<4;i++) pieces.push({color:c, idx:i, p:-1});
@@ -720,6 +810,7 @@ function newGame(colorList, names, aiColors){
     colors: colorList.slice(),
     names: Object.assign({}, names),
     aiColors: (aiColors||[]).slice(),
+    aiDifficulty: Object.assign({}, aiDifficulty),
     pieces: pieces,
     turn: 0,
     dice: null,
@@ -858,6 +949,14 @@ function chooseAIMove(game, color){
   var moves = game.movable;
   if(!moves || moves.length===0) return null;
   if(moves.length===1) return moves[0];
+  var difficulty = (game.aiDifficulty && game.aiDifficulty[color]) || 'hard';
+  if(difficulty==='easy'){
+    // Easy: mostly random, with only a mild nudge toward getting pieces out
+    // of the yard so games don't stall forever on an all-easy-AI table.
+    var yardMoves = moves.filter(function(idx){ return findPiece(game,color,idx).p===-1; });
+    if(yardMoves.length && Math.random()<0.5) return yardMoves[Math.floor(Math.random()*yardMoves.length)];
+    return moves[Math.floor(Math.random()*moves.length)];
+  }
   var roll = game.dice;
   var best = null, bestScore = -Infinity;
   moves.forEach(function(idx){
@@ -889,21 +988,24 @@ function chooseAIMove(game, color){
 var App = {
   screen:'screen-home',
   mode:null, // 'local' | 'online'
-  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set() },
-  online:{ roomCode:null, myColor:null, myClientId:null, isHost:false, pollHandle:null, joinedRoom:null, version:null },
+  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set(), aiDifficulty:{} },
+  online:{ roomCode:null, myColor:null, myClientId:null, myName:null, isHost:false, pollHandle:null, joinedRoom:null, version:null, lastReactionTs:0 },
   game:null,
   soundOn:true,
   hapticsOn:true,
+  shapesOn:false,
   theme:'dark',
   animating:false,
-  travelingPieceKey:null
+  travelingPieceKey:null,
+  installPromptEvent:null
 };
-App.online.myClientId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('c'+Math.random().toString(36).slice(2)+Date.now());
 
 /* ---------- persisted settings / local prefs / stats ---------- */
 var SETTINGS_KEY = 'ludo_settings_v1';
 var LOCAL_PREFS_KEY = 'ludo_local_prefs_v1';
 var STATS_KEY = 'ludo_stats_v1';
+var DEVICE_ID_KEY = 'ludo_device_id_v1';
+var ONLINE_SESSION_KEY = 'ludo_online_session_v1';
 
 function loadJSON(key){
   try{
@@ -915,15 +1017,29 @@ function saveJSON(key, obj){
   try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){ /* ignore quota/private-mode errors */ }
 }
 
+// Stable per-device id, persisted across reloads so a guest reconnecting to
+// a room is recognized as the same seat instead of getting a brand-new id
+// every time the page loads.
+(function initDeviceId(){
+  var id = null;
+  try{ id = localStorage.getItem(DEVICE_ID_KEY); }catch(e){}
+  if(!id){
+    id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('c'+Math.random().toString(36).slice(2)+Date.now());
+    try{ localStorage.setItem(DEVICE_ID_KEY, id); }catch(e){}
+  }
+  App.online.myClientId = id;
+})();
+
 function loadSettings(){
   var s = loadJSON(SETTINGS_KEY);
   if(!s) return;
   if(typeof s.soundOn==='boolean') App.soundOn = s.soundOn;
   if(typeof s.hapticsOn==='boolean') App.hapticsOn = s.hapticsOn;
+  if(typeof s.shapesOn==='boolean') App.shapesOn = s.shapesOn;
   if(s.theme==='light' || s.theme==='dark') App.theme = s.theme;
 }
 function saveSettings(){
-  saveJSON(SETTINGS_KEY, { soundOn:App.soundOn, hapticsOn:App.hapticsOn, theme:App.theme });
+  saveJSON(SETTINGS_KEY, { soundOn:App.soundOn, hapticsOn:App.hapticsOn, shapesOn:App.shapesOn, theme:App.theme });
 }
 
 function loadLocalPrefs(){
@@ -934,17 +1050,19 @@ function loadLocalPrefs(){
   }
   if(p.names && typeof p.names==='object') App.local.names = p.names;
   if(Array.isArray(p.ai)) App.local.ai = new Set(p.ai);
+  if(p.aiDifficulty && typeof p.aiDifficulty==='object') App.local.aiDifficulty = p.aiDifficulty;
 }
 function saveLocalPrefs(){
   saveJSON(LOCAL_PREFS_KEY, {
     selected: Array.from(App.local.selected),
     names: App.local.names,
-    ai: Array.from(App.local.ai)
+    ai: Array.from(App.local.ai),
+    aiDifficulty: App.local.aiDifficulty
   });
 }
 
 function loadStats(){
-  return Object.assign({ played:0, won:0 }, loadJSON(STATS_KEY) || {});
+  return Object.assign({ played:0, won:0, history:[] }, loadJSON(STATS_KEY) || {});
 }
 function recordGameStarted(){
   var s = loadStats(); s.played += 1; saveJSON(STATS_KEY, s);
@@ -952,11 +1070,22 @@ function recordGameStarted(){
 function recordGameWon(){
   var s = loadStats(); s.won += 1; saveJSON(STATS_KEY, s);
 }
+function recordHistoryEntry(entry){
+  var s = loadStats();
+  if(!Array.isArray(s.history)) s.history = [];
+  s.history.unshift(entry);
+  s.history = s.history.slice(0, 5);
+  saveJSON(STATS_KEY, s);
+}
 
 function applyTheme(){
   document.documentElement.setAttribute('data-theme', App.theme==='light' ? 'light' : 'dark');
   var meta = document.querySelector('meta[name="theme-color"]');
   if(meta) meta.setAttribute('content', App.theme==='light' ? '#eef2ea' : '#133229');
+}
+function applyShapes(){
+  if(App.shapesOn) document.documentElement.setAttribute('data-shapes', 'on');
+  else document.documentElement.removeAttribute('data-shapes');
 }
 
 function vibrate(pattern){
@@ -964,14 +1093,76 @@ function vibrate(pattern){
   try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){ /* unsupported */ }
 }
 
+/* ---------- online session persistence (for reconnect) ---------- */
+function saveOnlineSession(){
+  if(!App.online.roomCode || !App.online.myColor) return;
+  saveJSON(ONLINE_SESSION_KEY, {
+    roomCode: App.online.roomCode,
+    myColor: App.online.myColor,
+    myName: App.online.myName,
+    isHost: App.online.isHost
+  });
+}
+function clearOnlineSession(){
+  try{ localStorage.removeItem(ONLINE_SESSION_KEY); }catch(e){}
+}
+
+// Called once at startup. If we have a saved room/seat from before a reload
+// (or the app being backgrounded and killed), silently try to rejoin it —
+// matched by the stable per-device client id, not by color, in case the
+// color assignment ever needs to be re-derived from the room's seat list.
+function attemptReconnect(){
+  var session = loadJSON(ONLINE_SESSION_KEY);
+  if(!session || !session.roomCode) return;
+  var banner = document.getElementById('reconnect-banner');
+  if(banner) banner.style.display='flex';
+  roomGet(session.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable){
+      if(banner) banner.style.display='none';
+      return; // leave the session in place — connection issue, not a stale room
+    }
+    var room = res.room;
+    if(!room){ clearOnlineSession(); if(banner) banner.style.display='none'; return; }
+    var mySeat = null;
+    (room.seats||[]).forEach(function(s){ if(s.clientId===App.online.myClientId) mySeat = s; });
+    if(!mySeat){ clearOnlineSession(); if(banner) banner.style.display='none'; return; }
+
+    App.mode='online';
+    App.online.roomCode = session.roomCode;
+    App.online.myColor = mySeat.color;
+    App.online.myName = mySeat.name;
+    App.online.isHost = (room.hostClientId===App.online.myClientId);
+    App.online.lastReactionTs = Date.now();
+    if(banner) banner.style.display='none';
+
+    if(room.status==='lobby'){
+      enterLobby();
+    } else if(room.game){
+      App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
+    } else {
+      clearOnlineSession();
+    }
+  }).catch(function(){
+    if(banner) banner.style.display='none';
+  });
+}
+
 loadSettings();
 loadLocalPrefs();
 applyTheme();
+applyShapes();
 
 function show(id){
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
   App.screen = id;
+  var installBtn = document.getElementById('btn-install');
+  if(installBtn) installBtn.style.display = (App.installPromptEvent && id==='screen-home') ? 'block' : 'none';
 }
 document.querySelectorAll('[data-back]').forEach(function(b){
   b.addEventListener('click', function(){
@@ -1130,12 +1321,46 @@ function getStack(r,c){
   return el;
 }
 
+/* ---------- legal-move destination preview ---------- */
+var destMarkerEls = [];
+function clearDestMarkers(){
+  destMarkerEls.forEach(function(el){ el.remove(); });
+  destMarkerEls = [];
+}
+function renderDestinationPreviews(game, myTurnColor, iCanAct){
+  if(!iCanAct || !game.diceRolled || !game.movable || !game.movable.length) return;
+  var roll = game.dice;
+  var seen = {};
+  game.movable.forEach(function(idx){
+    var piece = findPiece(game, myTurnColor, idx);
+    if(!piece) return;
+    var oldP = piece.p;
+    var newP = (oldP===-1) ? 0 : oldP+roll;
+    if(newP>=57) return; // finishing goes straight to the tray — no board cell to mark
+    var rc = cellCoordFor(myTurnColor, newP);
+    if(!rc) return;
+    var key = rc[0]+'_'+rc[1];
+    if(seen[key]) return; // avoid stacking duplicate markers when two pieces share a destination
+    seen[key] = true;
+    var marker = document.createElement('div');
+    marker.className = 'dest-marker';
+    var p = pct(rc[0], rc[1]);
+    marker.style.left = p.left; marker.style.top = p.top;
+    boardEl.appendChild(marker);
+    destMarkerEls.push(marker);
+  });
+}
+
+var COLOR_SHAPES = { red:'\u25B2', green:'\u25A0', yellow:'\u25C6', blue:'\u25CF' };
 function makePieceDot(color, idx, movable, justMoved){
   var d = document.createElement('div');
   d.className = 'piece' + (movable?' movable':'') + (justMoved?' justmoved':'');
   d.style.background = 'linear-gradient(155deg, ' + COLORS[color].hex + ', ' + COLORS[color].deep + ')';
   d.dataset.color = color; d.dataset.idx = idx;
-
+  var shape = document.createElement('span');
+  shape.className = 'piece-shape';
+  shape.textContent = COLOR_SHAPES[color];
+  d.appendChild(shape);
   return d;
 }
 
@@ -1259,6 +1484,7 @@ function renderGame(){
   if(!App.game) return;
   var game = App.game;
   clearStacks();
+  clearDestMarkers();
   ALL_COLORS.forEach(function(color){
     for(var i=0;i<4;i++){ var s = document.getElementById('yardslot-'+color+'-'+i); if(s) s.innerHTML=''; }
     var tray = document.getElementById('tray-'+color); if(tray) tray.innerHTML='';
@@ -1266,6 +1492,7 @@ function renderGame(){
 
   var myTurnColor = game.colors[game.turn];
   var iCanAct = isHumanTurn() && !App.animating;
+  renderDestinationPreviews(game, myTurnColor, iCanAct);
 
   game.pieces.forEach(function(piece){
     if(App.travelingPieceKey === (piece.color+piece.idx)) return; // shown by the traveling overlay instead
@@ -1320,6 +1547,7 @@ function renderGame(){
 
   renderDice();
   renderLog();
+  renderReactionRow();
 
   var timerEl = document.getElementById('turn-timer');
   if(timerEl){
@@ -1340,8 +1568,15 @@ function renderGame(){
     } else {
       playAgainBtn.textContent = 'Play Again';
     }
-    if(App.mode==='local'){
-      recordGameWon_ifHuman(game);
+    var finKey = game.winner + '@' + game.turnStartedAt;
+    if(!_historyRecordedKeys[finKey]){
+      _historyRecordedKeys[finKey] = true;
+      recordGameFinishedHistory(game);
+      if(App.mode==='local'){
+        recordGameWon_ifHuman(game);
+      } else if(App.mode==='online' && game.winner===App.online.myColor){
+        recordGameWon();
+      }
     }
     setTimeout(function(){ sfxWin(); vibrate([40,60,40,60,160]); show('screen-gameover'); launchConfetti(); }, 700);
   } else {
@@ -1349,9 +1584,20 @@ function renderGame(){
   }
 }
 
+var _historyRecordedKeys = {};
 function recordGameWon_ifHuman(game){
   var isAIWinner = game.aiColors && game.aiColors.indexOf(game.winner)!==-1;
   if(!isAIWinner) recordGameWon();
+}
+
+function recordGameFinishedHistory(game){
+  var modeLabel = (App.mode==='online' ? 'Online' : 'Local') + ' \u00b7 ' + game.colors.length + ' players';
+  recordHistoryEntry({
+    winnerColor: game.winner,
+    winnerName: colorLabel(game, game.winner),
+    modeLabel: modeLabel,
+    ts: Date.now()
+  });
 }
 
 /* ---------- AI turn scheduler (local mode only) ---------- */
@@ -1430,6 +1676,24 @@ function renderLocalSetup(){
       renderLocalSetup();
     });
     row.appendChild(dot); row.appendChild(input); row.appendChild(aiBtn);
+    if(App.local.ai.has(color)){
+      var diffRow = document.createElement('div');
+      diffRow.className = 'diff-row';
+      ['easy','hard'].forEach(function(level){
+        var pill = document.createElement('button');
+        pill.type='button';
+        var current = App.local.aiDifficulty[color] || 'hard';
+        pill.className = 'diff-pill' + (current===level ? ' selected':'');
+        pill.textContent = level==='easy' ? 'Easy' : 'Hard';
+        pill.addEventListener('click', function(){
+          App.local.aiDifficulty[color] = level;
+          saveLocalPrefs();
+          renderLocalSetup();
+        });
+        diffRow.appendChild(pill);
+      });
+      row.appendChild(diffRow);
+    }
     namesEl.appendChild(row);
   });
 }
@@ -1447,7 +1711,7 @@ document.getElementById('btn-local-start').addEventListener('click', function(){
   colors.forEach(function(c){ names[c] = (App.local.names[c]||'').trim() || COLORS[c].label; });
   var aiColors = colors.filter(function(c){ return App.local.ai.has(c); });
   saveLocalPrefs();
-  App.game = newGame(colors, names, aiColors);
+  App.game = newGame(colors, names, aiColors, App.local.aiDifficulty);
   recordGameStarted();
   document.getElementById('log-card').style.display='none';
   renderGame();
@@ -1673,7 +1937,10 @@ document.getElementById('btn-create-confirm').addEventListener('click', async fu
     App.mode='online';
     App.online.roomCode = code;
     App.online.myColor = createState.color;
+    App.online.myName = name;
     App.online.isHost = true;
+    App.online.lastReactionTs = Date.now();
+    saveOnlineSession();
     enterLobby();
   }).catch(function(e){
     console.error('Ludo: create room error', e);
@@ -1774,7 +2041,10 @@ document.getElementById('btn-join-confirm').addEventListener('click', async func
       App.mode='online';
       App.online.roomCode = joinState.code;
       App.online.myColor = joinState.color;
+      App.online.myName = name;
       App.online.isHost = false;
+      App.online.lastReactionTs = Date.now();
+      saveOnlineSession();
       enterLobby();
     });
   }).catch(function(e){
@@ -1850,7 +2120,7 @@ function _runLobbyPoll(){
     if(res.unavailable){ _dbg('UNAVAILABLE'); return; }
     if(res.forbidden){ _dbg('FORBIDDEN - check Firebase rules'); return; }
     var room = res.room;
-    if(!room){ _dbg('room is null/missing'); _stopLobbyLoop(); toast('Room closed'); show('screen-home'); return; }
+    if(!room){ _dbg('room is null/missing'); _stopLobbyLoop(); clearOnlineSession(); toast('Room closed'); show('screen-home'); return; }
     _dbg('status=' + room.status + ' seats=' + (room.seats ? room.seats.length : '?') + ' game=' + (room.game ? 'yes' : 'no'));
     var gameStarted = room.status === 'playing'
       || room.status === 'finished'
@@ -1996,6 +2266,7 @@ document.getElementById('lobby-back').addEventListener('click', function(){
   _stopLobbyLoop();
   stopPolling();
   App.mode=null;
+  clearOnlineSession();
   show('screen-online-menu');
 });
 
@@ -2016,7 +2287,9 @@ function pollGameOnce(){
   roomGet(App.online.roomCode).then(function(res){
     if(res.timedOut || res.unavailable) return; // transient — try again next tick
     var room = res.room;
-    if(!room || !room.game) return;
+    if(!room) return;
+    handleIncomingReaction(room);
+    if(!room.game) return;
     if(onlineWriting || App.animating) return;
     var incomingVersion = room.version || 0;
     if(incomingVersion === App.online.version) return; // nothing changed — don't tear down/rebuild pieces for no reason
@@ -2037,6 +2310,45 @@ function pollGameOnce(){
       if(App.screen==='screen-game') renderGame();
     }
   });
+}
+
+// Emoji reactions ride on a separate `reaction` field on the room so they
+// never touch the game/version — sending one can't clash with a move.
+function handleIncomingReaction(room){
+  if(!room.reaction || !room.reaction.ts) return;
+  if(room.reaction.ts <= App.online.lastReactionTs) return;
+  App.online.lastReactionTs = room.reaction.ts;
+  if(room.reaction.from === App.online.myColor) return; // don't re-show our own
+  showReactionBubble(room.reaction.emoji);
+}
+
+var REACTION_EMOJIS = ['\ud83d\udc4f','\ud83d\ude05','\ud83d\udd25','\ud83d\ude2e','\ud83c\udf89'];
+function renderReactionRow(){
+  var row = document.getElementById('reaction-row');
+  if(!row) return;
+  if(App.mode!=='online' || !App.game || App.game.status!=='playing'){ row.style.display='none'; return; }
+  row.style.display='flex';
+  if(row.dataset.built) return;
+  row.dataset.built='1';
+  REACTION_EMOJIS.forEach(function(emoji){
+    var btn = document.createElement('button');
+    btn.type='button'; btn.className='reaction-btn'; btn.textContent=emoji;
+    btn.addEventListener('click', function(){ sendReaction(emoji); });
+    row.appendChild(btn);
+  });
+}
+function sendReaction(emoji){
+  if(App.mode!=='online' || !App.online.roomCode) return;
+  vibrate(10);
+  showReactionBubble(emoji);
+  roomSet(App.online.roomCode, { reaction: { emoji: emoji, from: App.online.myColor, ts: Date.now() } });
+}
+function showReactionBubble(emoji){
+  var el = document.createElement('div');
+  el.className='reaction-bubble';
+  el.textContent = emoji;
+  document.body.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 1900);
 }
 
 // If the incoming synced state shows a single piece advanced from where we last saw it
@@ -2186,6 +2498,7 @@ document.getElementById('btn-leave-game').addEventListener('click', function(){
   stopPolling();
   App.game = null;
   App.mode = null;
+  clearOnlineSession();
   show('screen-home');
 });
 
@@ -2193,6 +2506,7 @@ document.getElementById('btn-gameover-home').addEventListener('click', function(
   stopPolling();
   App.game = null;
   App.mode = null;
+  clearOnlineSession();
   show('screen-home');
 });
 
@@ -2208,7 +2522,8 @@ document.getElementById('btn-play-again').addEventListener('click', function(){
   var colors = App.game.colors.slice();
   var names = App.game.names;
   var aiColors = App.game.aiColors ? App.game.aiColors.slice() : [];
-  App.game = newGame(colors, names, aiColors);
+  var aiDifficulty = App.game.aiDifficulty ? Object.assign({}, App.game.aiDifficulty) : {};
+  App.game = newGame(colors, names, aiColors, aiDifficulty);
   recordGameStarted();
   document.getElementById('log-card').style.display='none';
   renderGame();
@@ -2245,10 +2560,35 @@ function renderSettings(){
 
   document.getElementById('toggle-sound').classList.toggle('on', App.soundOn);
   document.getElementById('toggle-haptics').classList.toggle('on', App.hapticsOn);
+  document.getElementById('toggle-shapes').classList.toggle('on', App.shapesOn);
 
   var stats = loadStats();
   document.getElementById('stat-played').textContent = stats.played;
   document.getElementById('stat-won').textContent = stats.won;
+
+  var historyCard = document.getElementById('history-card');
+  var history = stats.history || [];
+  if(history.length===0){
+    historyCard.innerHTML = '<div class="muted">No games yet.</div>';
+  } else {
+    historyCard.innerHTML = history.map(function(h){
+      var when = timeAgo(h.ts);
+      return '<div class="history-row"><div class="who"><span class="dot" style="background:'+ (COLORS[h.winnerColor]?COLORS[h.winnerColor].hex:'#999') +'"></span>' +
+        escapeHtml(h.winnerName) + ' won \u00b7 ' + escapeHtml(h.modeLabel) + '</div><div class="when">' + when + '</div></div>';
+    }).join('');
+  }
+}
+
+function timeAgo(ts){
+  if(!ts) return '';
+  var secs = Math.max(0, Math.floor((Date.now()-ts)/1000));
+  if(secs<60) return 'just now';
+  var mins = Math.floor(secs/60);
+  if(mins<60) return mins+'m ago';
+  var hrs = Math.floor(mins/60);
+  if(hrs<24) return hrs+'h ago';
+  var days = Math.floor(hrs/24);
+  return days+'d ago';
 }
 
 document.getElementById('toggle-sound').addEventListener('click', function(){
@@ -2262,16 +2602,69 @@ document.getElementById('toggle-haptics').addEventListener('click', function(){
   renderSettings();
   if(App.hapticsOn) vibrate(15);
 });
+document.getElementById('toggle-shapes').addEventListener('click', function(){
+  App.shapesOn = !App.shapesOn;
+  applyShapes();
+  saveSettings();
+  renderSettings();
+});
 document.getElementById('btn-reset-stats').addEventListener('click', function(){
-  saveJSON(STATS_KEY, { played:0, won:0 });
+  saveJSON(STATS_KEY, { played:0, won:0, history:[] });
   renderSettings();
   toast('Stats reset');
 });
 
 /* ======================================================================
+   DEEP-LINK JOIN & INSTALL PROMPT
+   ====================================================================== */
+function handleDeepLinkJoin(){
+  try{
+    var params = new URLSearchParams(window.location.search);
+    var room = (params.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+    if(room.length!==5) return;
+    var session = loadJSON(ONLINE_SESSION_KEY);
+    if(session && session.roomCode) return; // don't fight an in-progress reconnect
+    show('screen-join');
+    document.getElementById('join-code').value = room;
+    document.getElementById('btn-join-check').click();
+    if(window.history && window.history.replaceState){
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }catch(e){ /* URLSearchParams unsupported or blocked — ignore, deep link is a nicety */ }
+}
+
+function setupInstallPrompt(){
+  var btn = document.getElementById('btn-install');
+  var isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  if(isStandalone) return;
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    App.installPromptEvent = e;
+    if(btn) btn.style.display = (App.screen==='screen-home') ? 'block' : 'none';
+  });
+  window.addEventListener('appinstalled', function(){
+    App.installPromptEvent = null;
+    if(btn) btn.style.display='none';
+  });
+  if(btn){
+    btn.addEventListener('click', function(){
+      if(!App.installPromptEvent) return;
+      App.installPromptEvent.prompt();
+      App.installPromptEvent.userChoice.finally(function(){
+        App.installPromptEvent = null;
+        btn.style.display='none';
+      });
+    });
+  }
+}
+
+/* ======================================================================
    INIT
    ====================================================================== */
 show('screen-home');
+attemptReconnect();
+handleDeepLinkJoin();
+setupInstallPrompt();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
