@@ -1,0 +1,3474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.firebasedatabase.app; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ludo</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#133229">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ludo">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --felt: #133229;
+  --felt-2: #0e2620;
+  --wood: #8a5a34;
+  --wood-light:#a9764c;
+  --board: #f6ecd9;
+  --board-line: #d9c7a3;
+  --ink: #221c14;
+  --cream: #f3ead9;
+  --cream-dim: #c9bfae;
+
+  --red: #d6453c;
+  --red-deep:#a32f28;
+  --green: #2f9e5b;
+  --green-deep:#1f7843;
+  --yellow: #e7b53e;
+  --yellow-deep:#b9871d;
+  --blue: #3f7fd6;
+  --blue-deep:#2b5fa8;
+
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 8px;
+  --shadow-deep: 0 10px 30px rgba(0,0,0,.45);
+  --font-display: 'Baloo 2', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+:root[data-theme="light"]{
+  --felt: #eef2ea;
+  --felt-2: #dfe7d9;
+  --board: #fffdf7;
+  --board-line: #d9c7a3;
+  --ink: #221c14;
+  --cream: #23291f;
+  --cream-dim: #5b6154;
+}
+:root[data-theme="light"] body{
+  background: var(--felt-2);
+}
+:root[data-theme="light"] body::before{
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #f4f7ef 0%, var(--felt) 55%, var(--felt-2) 100%);
+}
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .mode-btn,
+:root[data-theme="light"] .btn-secondary,
+:root[data-theme="light"] .color-chip,
+:root[data-theme="light"] .back-btn,
+:root[data-theme="light"] .icon-btn,
+:root[data-theme="light"] .turn-banner,
+:root[data-theme="light"] .reaction-btn,
+:root[data-theme="light"] .diff-pill,
+:root[data-theme="light"] .theme-pick,
+:root[data-theme="light"] .toggle-row{
+  background:rgba(0,0,0,.035); border-color:rgba(0,0,0,.1);
+}
+:root[data-theme="light"] .btn-secondary:active{ background:rgba(0,0,0,.07); }
+:root[data-theme="light"] .color-chip.selected{ background:rgba(0,0,0,.08); border-color:rgba(0,0,0,.3); }
+:root[data-theme="light"] input[type=text]{ background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.15); color:var(--cream); }
+:root[data-theme="light"] .toast{ background:rgba(30,30,26,.92); }
+*{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+.piece:focus-visible, .dice:focus-visible, .color-chip:focus-visible, .ai-toggle:focus-visible,
+button:focus-visible, input:focus-visible{
+  outline:2.5px solid var(--yellow); outline-offset:2px;
+}
+.piece.movable{ cursor:pointer; }
+.piece.hint-pulse{ animation: hintPulse 0.55s ease-in-out 3; }
+@keyframes hintPulse{ 0%,100%{ transform:scale(1); filter:brightness(1); } 50%{ transform:scale(1.22); filter:brightness(1.5); } }
+html,body{height:100%;}
+body{
+  margin:0;
+  min-height:100vh;
+  min-height:100dvh;
+  background: var(--felt-2);
+  color:var(--cream);
+  font-family:var(--font-body);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  overflow-x:hidden;
+}
+/* Painted as a fixed, viewport-sized layer (not on body's own box) so it
+   never shifts, repeats, or shows a seam once page content grows taller
+   than one screen and the page scrolls — body's own background would
+   otherwise be clipped to its box and reveal a hard edge past 100vh. */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #1c4536 0%, var(--felt) 55%, var(--felt-2) 100%);
+}
+.app{
+  width:100%;
+  max-width:480px;
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  position:relative;
+}
+.screen{display:none; flex-direction:column; flex:1; animation:fadeIn .35s ease;}
+.screen.active{display:flex;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+h1,h2,h3{font-family:var(--font-display); margin:0; letter-spacing:.2px;}
+p{margin:0;}
+button{font-family:var(--font-body); cursor:pointer;}
+
+/* ---------- Reusable bits ---------- */
+.btn{
+  appearance:none; border:none; border-radius:14px;
+  padding:14px 18px; font-weight:700; font-size:16px;
+  font-family:var(--font-display);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  user-select:none;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:linear-gradient(180deg,#ffd873,#e7b53e); color:#3a2705; box-shadow:0 4px 0 var(--yellow-deep), 0 8px 18px rgba(0,0,0,.35);}
+.btn-primary:active{box-shadow:0 1px 0 var(--yellow-deep);}
+.btn-secondary{background:rgba(255,255,255,.07); color:var(--cream); border:1.5px solid rgba(255,255,255,.18);}
+.btn-secondary:active{background:rgba(255,255,255,.14);}
+.btn-ghost{background:transparent; color:var(--cream-dim); font-weight:600; padding:10px 12px;}
+.btn-block{width:100%;}
+.btn[disabled]{opacity:.4; pointer-events:none;}
+.btn-sm{padding:10px 14px; font-size:14px; border-radius:11px;}
+
+.card{
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:var(--radius-lg);
+  padding:18px;
+}
+
+.topbar{display:flex; align-items:center; gap:10px; margin-bottom:18px; min-height:34px;}
+.topbar .spacer{flex:1;}
+.back-btn{
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+  color:var(--cream); display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.back-btn:active{background:rgba(255,255,255,.18);}
+
+.field-label{font-size:12.5px; text-transform:uppercase; letter-spacing:1.2px; color:var(--cream-dim); font-weight:700; margin-bottom:8px; display:block;}
+input[type=text]{
+  width:100%; background:rgba(0,0,0,.25); border:1.5px solid rgba(255,255,255,.15);
+  border-radius:12px; padding:13px 14px; color:var(--cream); font-family:var(--font-body);
+  font-size:16px; outline:none;
+}
+input[type=text]:focus{border-color: var(--yellow);}
+input.code-input{
+  font-family:var(--font-mono); letter-spacing:6px; text-align:center; font-size:22px;
+  text-transform:uppercase;
+}
+
+.chip-row{display:flex; flex-wrap:wrap; gap:9px;}
+.color-chip{
+  display:flex; align-items:center; gap:8px;
+  padding:10px 14px; border-radius:30px;
+  background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.12);
+  font-weight:700; font-size:14.5px; color:var(--cream-dim);
+}
+.color-chip .dot{width:13px;height:13px;border-radius:50%; box-shadow: inset 0 -2px 2px rgba(0,0,0,.25);}
+.color-chip.selected{background:rgba(255,255,255,.12); color:var(--cream); border-color:rgba(255,255,255,.4);}
+.color-chip.disabled{opacity:.3; pointer-events:none;}
+
+/* ---------- Home screen ---------- */
+.home-topbar{display:flex; justify-content:flex-end; gap:8px; min-height:36px;}
+.home-hero{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:6px; padding-bottom:30px;}
+.logo-row{display:flex; gap:7px; margin-bottom:18px;}
+.logo-die{width:30px;height:30px; border-radius:8px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.3); animation: bob 2.6s ease-in-out infinite;}
+.logo-die:nth-child(1){background:var(--red); animation-delay:0s;}
+.logo-die:nth-child(2){background:var(--green); animation-delay:.15s;}
+.logo-die:nth-child(3){background:var(--yellow); animation-delay:.3s;}
+.logo-die:nth-child(4){background:var(--blue); animation-delay:.45s;}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-7px) rotate(8deg);}}
+.home-hero h1{font-size:52px; color:var(--cream); text-shadow:0 4px 0 rgba(0,0,0,.3);}
+.home-hero .tag{color:var(--cream-dim); font-size:15px; margin-top:4px; max-width:280px;}
+.home-actions{width:100%; display:flex; flex-direction:column; gap:12px; margin-top:30px;}
+.mode-btn{
+  width:100%; text-align:left; padding:18px; border-radius:18px;
+  display:flex; align-items:center; gap:14px;
+  background:rgba(255,255,255,.05); border:1.5px solid rgba(255,255,255,.1);
+  color:var(--cream);
+}
+.mode-btn:active{background:rgba(255,255,255,.1);}
+.mode-btn .icon{
+  width:46px;height:46px;border-radius:13px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:22px;
+}
+.mode-btn .txt strong{display:block; font-family:var(--font-display); font-size:17px;}
+.mode-btn .txt span{display:block; font-size:13px; color:var(--cream-dim); margin-top:2px;}
+
+/* ---------- Setup screens ---------- */
+.setup-body{flex:1; display:flex; flex-direction:column; gap:22px;}
+.player-row{
+  display:flex; align-items:center; gap:11px; padding:11px 12px; flex-wrap:wrap;
+  background:rgba(255,255,255,.05); border-radius:13px; border:1.5px solid rgba(255,255,255,.08);
+}
+.player-row .dot{width:16px;height:16px;border-radius:50%; flex-shrink:0; box-shadow: inset 0 -2px 2px rgba(0,0,0,.25);}
+.player-row input{background:transparent; border:none; padding:4px 0; font-size:15px; font-weight:600; color:var(--cream); flex:1 1 60px; min-width:0;}
+.player-row input:focus{outline:none;}
+.player-row .diff-row{flex-basis:100%; margin-left:26px;}
+.player-row .diff-row{flex-basis:100%; margin-left:26px;}
+.stepper{display:flex; align-items:center; gap:14px; justify-content:center;}
+.stepper button{
+  width:42px;height:42px;border-radius:50%; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16);
+  color:var(--cream); font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center;
+}
+.stepper .count{font-family:var(--font-display); font-size:26px; min-width:30px; text-align:center;}
+
+/* ---------- Lobby ---------- */
+.ticket{
+  background: var(--board); color:var(--ink); border-radius:18px; padding:22px 18px;
+  position:relative; text-align:center; box-shadow:var(--shadow-deep);
+}
+.ticket .lbl{font-size:11.5px; letter-spacing:2px; text-transform:uppercase; color:#8a7a59; font-weight:700;}
+.ticket .code{font-family:var(--font-mono); font-size:36px; font-weight:700; letter-spacing:8px; margin:8px 0 4px; color:var(--red-deep);}
+.ticket .hint{font-size:12.5px; color:#8a7a59;}
+.seats{display:flex; flex-direction:column; gap:9px; margin-top:16px;}
+.seat{
+  display:flex; align-items:center; gap:11px; padding:12px 13px; border-radius:13px;
+  background:rgba(255,255,255,.05); border:1.5px solid rgba(255,255,255,.08);
+}
+.seat .dot{width:15px;height:15px;border-radius:50%; flex-shrink:0;}
+.seat .nm{font-weight:600; flex:1;}
+.seat .you{font-size:11px; color:var(--yellow); font-weight:700;}
+.seat.empty{opacity:.35; border-style:dashed;}
+.seat-remove{
+  flex-shrink:0; width:26px; height:26px; border-radius:50%; font-size:14px; font-weight:700;
+  background:rgba(214,69,60,.16); border:1px solid rgba(214,69,60,.4); color:#ff8a80;
+  display:flex; align-items:center; justify-content:center;
+}
+.waiting-pulse{display:inline-block; width:8px;height:8px;border-radius:50%; background:var(--yellow); animation:pulse 1.4s ease infinite; margin-right:6px;}
+@keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
+
+/* ---------- Game screen ---------- */
+.game-top{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.turn-banner{
+  flex:1; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:14px;
+  background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.1);
+  min-width:0;
+}
+.turn-banner .dot{width:14px;height:14px;border-radius:50%; flex-shrink:0; box-shadow: inset 0 -2px 2px rgba(0,0,0,.3);}
+.turn-banner .info{flex:1; min-width:0;}
+.turn-banner .info .who{font-weight:700; font-size:14px; font-family:var(--font-display);}
+.turn-banner .info .what{font-size:11.5px; color:var(--cream-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.icon-btn{
+  width:36px;height:36px;border-radius:50%; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14);
+  color:var(--cream); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;
+}
+
+.board-wrap{
+  background: linear-gradient(155deg, var(--wood-light), var(--wood) 60%);
+  border-radius:18px; padding:9px; box-shadow:var(--shadow-deep);
+}
+.board{
+  width:100%; aspect-ratio:1/1; background:var(--board); border-radius:10px; overflow:visible;
+  display:grid; grid-template-columns:repeat(15,1fr); grid-template-rows:repeat(15,1fr);
+  position:relative; box-shadow: inset 0 0 0 2px var(--board-line);
+}
+.cell{ border:.5px solid rgba(0,0,0,.06); }
+.cell.path{background:var(--board);}
+.cell.safe{ background-image: radial-gradient(circle, rgba(0,0,0,.13) 0 9%, transparent 10%); background-size:100% 100%; }
+.cell.center{
+  display:flex; align-items:center; justify-content:center; font-size:60%;
+}
+.yard{
+  border-radius:14px; position:relative; padding:10%;
+  display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:8%;
+  z-index:10;
+}
+.yard::before{
+  content:""; position:absolute; inset:8%; background:rgba(255,255,255,.88); border-radius:12px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.12);
+}
+.yard-slot{
+  position:relative; z-index:1; border-radius:50%; background:rgba(0,0,0,.07);
+  display:flex; align-items:center; justify-content:center;
+  overflow:visible;
+}
+.piece{
+  width:78%; aspect-ratio:1/1; border-radius:50%;
+  box-shadow: 0 2px 0 rgba(0,0,0,.3), inset 0 -3px 4px rgba(0,0,0,.25), inset 0 2px 2px rgba(255,255,255,.35), 0 0 0 2px rgba(255,255,255,.5);
+  display:flex; align-items:center; justify-content:center;
+  position:relative; z-index:1;
+}
+.piece.movable{ cursor:pointer; z-index:20; touch-action:manipulation; }
+.piece.movable::after{ content:''; position:absolute; inset:-18px; border-radius:50%; }
+.piece.movable:active{ transform:scale(1.15); }
+.piece.justmoved{ animation: piecePop .35s ease; }
+@keyframes piecePop{0%{transform:scale(.4);} 60%{transform:scale(1.25);} 100%{transform:scale(1);}}
+.travel-wrap{
+  position:absolute;
+  width:6.6667%; height:6.6667%;
+  display:flex; align-items:center; justify-content:center;
+  z-index:40; pointer-events:none;
+  transition: left .22s cubic-bezier(.45,0,.2,1), top .22s cubic-bezier(.45,0,.2,1);
+}
+.travel-wrap .piece{ width:76%; }
+.travel-wrap.hop .piece{ animation: pieceHop .22s ease; }
+@keyframes pieceHop{ 0%{transform:scale(1) translateY(0);} 45%{transform:scale(1.28) translateY(-22%);} 100%{transform:scale(1) translateY(0);} }
+.hop-count{
+  position:absolute; z-index:41; pointer-events:none;
+  font-family:var(--font-display); font-weight:700; font-size:11px; color:#3a2705;
+  background:linear-gradient(180deg,#ffe49b,#e7b53e); border-radius:50%;
+  width:15px; height:15px; display:flex; align-items:center; justify-content:center;
+  margin-left:4px; margin-top:-4px;
+  box-shadow:0 2px 4px rgba(0,0,0,.35);
+  animation: countPop .5s ease forwards;
+}
+@keyframes countPop{0%{opacity:0; transform:translate(40%,-30%) scale(.5);} 25%{opacity:1; transform:translate(40%,-55%) scale(1.1);} 75%{opacity:1;} 100%{opacity:0; transform:translate(40%,-75%) scale(.9);}}
+.cell-stack{
+  position:relative; display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+  width:100%; height:100%; z-index:5; padding:6%;
+}
+.cell-stack .piece{width:46%;}
+.cell-stack.single .piece{width:74%;}
+.finish-tray{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:1px; width:100%; height:100%; padding:6%;}
+.finish-tray .piece{width:42%; box-shadow:none; border:1px solid rgba(0,0,0,.2);}
+.center-badge{font-size:18px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.3));}
+
+/* ---------- Dice / controls ---------- */
+.controls{margin-top:16px; display:flex; align-items:center; gap:16px;}
+.dice-wrap{display:flex; flex-direction:column; align-items:center; gap:8px; flex-shrink:0;}
+.dice{
+  width:64px;height:64px; border-radius:16px;
+  background: linear-gradient(155deg,#fffdf8,#e9e2d2);
+  box-shadow: 0 5px 0 #b8ad95, 0 10px 16px rgba(0,0,0,.35);
+  display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  padding:10px; flex-shrink:0;
+}
+.dice.disabled{ filter:grayscale(.6) brightness(.85); }
+.dice.rolling{ animation: diceRoll .6s ease; }
+@keyframes diceRoll{
+  0%{transform:rotate(0deg) scale(1);}
+  20%{transform:rotate(120deg) scale(1.08);}
+  40%{transform:rotate(220deg) scale(.95);}
+  60%{transform:rotate(330deg) scale(1.08);}
+  80%{transform:rotate(420deg) scale(.97);}
+  100%{transform:rotate(480deg) scale(1);}
+}
+.pip{border-radius:50%; background:var(--ink); width:100%; height:100%; justify-self:center; align-self:center; transform:scale(.55); opacity:0;}
+.pip.on{opacity:1;}
+.controls .roll-area{flex:1; display:flex; flex-direction:column; gap:8px; min-width:0;}
+.extra-tag{
+  display:inline-flex; align-self:flex-start; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+  color:#3a2705; background: linear-gradient(180deg,#ffe49b,#e7b53e); padding:4px 10px; border-radius:20px;
+}
+
+.log-card{margin-top:14px; max-height:108px; overflow-y:auto;}
+.log-card .field-label{margin-bottom:6px;}
+.log-line{font-size:12.5px; color:var(--cream-dim); padding:3px 0; border-top:1px solid rgba(255,255,255,.06);}
+.log-line:first-child{border-top:none;}
+.log-line b{color:var(--cream);}
+
+/* ---------- Game over ---------- */
+.gameover-body{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px;}
+.trophy{font-size:64px; animation: bob 2.2s ease-in-out infinite;}
+.win-color{font-family:var(--font-display); font-size:30px;}
+.gameover-actions{width:100%; display:flex; flex-direction:column; gap:10px; margin-top:24px;}
+
+/* misc */
+.muted{color:var(--cream-dim); font-size:13.5px; line-height:1.5;}
+.center-col{display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px;}
+.row{display:flex; align-items:center; gap:10px;}
+.status-banner{
+  padding:13px 14px; border-radius:13px; font-size:13.5px; line-height:1.5; font-weight:600;
+  display:flex; align-items:flex-start; gap:9px;
+}
+.status-banner.warn{ background:rgba(231,181,62,.14); border:1.5px solid rgba(231,181,62,.4); color:#ffe7ad; }
+.status-banner.checking{ background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.12); color:var(--cream-dim); }
+.status-banner .retry-link{ color:var(--yellow); text-decoration:underline; font-weight:700; cursor:pointer; }
+.toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+  background:rgba(20,20,16,.92); color:var(--cream); padding:11px 18px; border-radius:30px;
+  font-size:13.5px; font-weight:600; box-shadow:0 6px 20px rgba(0,0,0,.4); z-index:200;
+  opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  max-width:88%; text-align:center;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+
+/* ---------- Settings / toggles ---------- */
+.toggle-row{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.09);
+  border-radius:14px; padding:14px 16px;
+}
+.toggle-row .txt strong{display:block; font-family:var(--font-display); font-size:15px;}
+.toggle-row .txt span{display:block; font-size:12.5px; color:var(--cream-dim); margin-top:2px;}
+.switch{
+  position:relative; width:46px; height:27px; border-radius:20px; flex-shrink:0;
+  background:rgba(255,255,255,.15); border:none; padding:0; cursor:pointer;
+  transition: background .18s ease;
+}
+.switch::after{
+  content:''; position:absolute; top:3px; left:3px; width:21px; height:21px; border-radius:50%;
+  background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.3); transition: transform .18s ease;
+}
+.switch.on{ background: linear-gradient(180deg,#ffd873,#e7b53e); }
+.switch.on::after{ transform: translateX(19px); }
+.settings-section{display:flex; flex-direction:column; gap:10px; margin-bottom:22px;}
+.settings-section:last-child{margin-bottom:0;}
+.theme-pick-row{display:flex; gap:9px;}
+.theme-pick{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 8px;
+  border-radius:14px; background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.1);
+  color:var(--cream-dim); font-weight:700; font-size:13px;
+}
+.theme-pick.selected{ background:rgba(255,255,255,.12); color:var(--cream); border-color:rgba(255,255,255,.4); }
+.theme-swatch{width:100%; height:34px; border-radius:9px;}
+.stats-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.stat-box{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:14px; padding:14px; text-align:center;}
+.stat-box .num{font-family:var(--font-display); font-size:26px; color:var(--yellow);}
+.stat-box .lbl{font-size:11.5px; color:var(--cream-dim); text-transform:uppercase; letter-spacing:.8px; margin-top:2px;}
+
+/* ---------- AI toggle (local setup) ---------- */
+.ai-toggle{
+  flex-shrink:0; padding:9px 13px; border-radius:11px; font-size:12.5px; font-weight:700;
+  background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.14); color:var(--cream-dim);
+}
+.ai-toggle.on{ background:rgba(231,181,62,.18); border-color:rgba(231,181,62,.5); color:var(--yellow); }
+.ai-tag{
+  font-size:10.5px; font-weight:700; color:var(--yellow); background:rgba(231,181,62,.16);
+  border-radius:8px; padding:2px 6px; margin-left:6px; vertical-align:middle;
+}
+
+/* ---------- Turn timer ---------- */
+.turn-timer-badge{font-family:var(--font-mono); font-size:11px; color:var(--cream-dim); margin-left:6px; flex-shrink:0;}
+
+/* ---------- Confetti overlay ---------- */
+#confetti-canvas{
+  position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:250;
+}
+
+/* ---------- Rules screen ---------- */
+.rules-body{display:flex; flex-direction:column; gap:16px; overflow-y:auto; padding-bottom:20px;}
+.rule-item{display:flex; gap:12px; align-items:flex-start;}
+.rule-item .rule-icon{
+  width:38px; height:38px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:18px; background:rgba(255,255,255,.07);
+}
+.rule-item .rule-txt strong{display:block; font-family:var(--font-display); font-size:15px; margin-bottom:3px;}
+.rule-item .rule-txt p{font-size:13.5px; color:var(--cream-dim); line-height:1.5;}
+
+/* ---------- Colorblind shape markers ---------- */
+.piece-shape{
+  display:none; position:absolute; inset:0; align-items:center; justify-content:center;
+  font-size:46%; color:rgba(255,255,255,.92); text-shadow:0 1px 2px rgba(0,0,0,.5); pointer-events:none;
+}
+:root[data-shapes="on"] .piece-shape{ display:flex; }
+
+/* ---------- Destination move preview ---------- */
+.dest-marker{
+  position:absolute; width:6.6667%; height:6.6667%; z-index:15; pointer-events:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.dest-marker::after{
+  content:''; width:62%; height:62%; border-radius:50%;
+  border:2.5px dashed rgba(231,181,62,.85);
+  animation: destPulse 1.4s ease-in-out infinite;
+}
+@keyframes destPulse{0%,100%{opacity:.55; transform:scale(.92);} 50%{opacity:1; transform:scale(1);}}
+
+/* ---------- AI difficulty pill ---------- */
+.diff-row{display:flex; gap:6px; margin-left:auto;}
+.diff-pill{
+  padding:6px 10px; border-radius:9px; font-size:11px; font-weight:700;
+  background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.14); color:var(--cream-dim);
+}
+.diff-pill.selected{ background:rgba(231,181,62,.18); border-color:rgba(231,181,62,.5); color:var(--yellow); }
+
+/* ---------- Online reactions ---------- */
+.reaction-row{display:flex; justify-content:center; gap:10px; margin-top:12px;}
+.reaction-btn{
+  width:42px; height:42px; border-radius:50%; font-size:19px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  display:flex; align-items:center; justify-content:center;
+}
+.reaction-btn:active{ transform:scale(.9); }
+.reaction-bubble{
+  position:fixed; left:50%; top:32%; transform:translate(-50%,0); z-index:260;
+  font-size:44px; pointer-events:none; opacity:0;
+  animation: reactionFloat 1.8s ease forwards;
+}
+@keyframes reactionFloat{
+  0%{opacity:0; transform:translate(-50%,20px) scale(.6);}
+  15%{opacity:1; transform:translate(-50%,0) scale(1.15);}
+  30%{transform:translate(-50%,0) scale(1);}
+  80%{opacity:1;}
+  100%{opacity:0; transform:translate(-50%,-40px) scale(1);}
+}
+
+/* ---------- Online chat ---------- */
+.icon-btn{ position:relative; }
+.chat-badge{
+  position:absolute; top:-3px; right:-3px; min-width:16px; height:16px; padding:0 4px;
+  border-radius:9px; background:var(--red); color:#fff; font-family:var(--font-mono);
+  font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 0 2px var(--felt-2);
+}
+.chat-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:270;
+  display:flex; align-items:flex-end;
+}
+.chat-panel{
+  width:100%; max-height:70vh; background:var(--felt-2); border-radius:20px 20px 0 0;
+  border:1.5px solid rgba(255,255,255,.12); border-bottom:none;
+  display:flex; flex-direction:column; padding:14px 14px max(14px, env(safe-area-inset-bottom));
+  box-shadow:var(--shadow-deep);
+}
+.chat-panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.chat-panel-head strong{font-family:var(--font-display); font-size:16px;}
+.chat-messages{flex:1; overflow-y:auto; min-height:120px; max-height:44vh; display:flex; flex-direction:column; gap:8px; padding:2px 2px 6px;}
+.chat-empty{color:var(--cream-dim); font-size:13px; text-align:center; margin:auto;}
+.chat-msg{max-width:82%; padding:8px 11px; border-radius:13px; font-size:13.5px; line-height:1.35; word-break:break-word;}
+.chat-msg .who{display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; margin-bottom:2px; opacity:.8;}
+.chat-msg.other{align-self:flex-start; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-bottom-left-radius:4px;}
+.chat-msg.own{align-self:flex-end; background:rgba(231,181,62,.22); border:1px solid rgba(231,181,62,.4); border-bottom-right-radius:4px;}
+.chat-input-row{display:flex; gap:8px; margin-top:10px;}
+.chat-input-row input{
+  flex:1; background:rgba(255,255,255,.07); border:1.5px solid rgba(255,255,255,.16);
+  border-radius:12px; padding:11px 13px; color:var(--cream); font-family:var(--font-body); font-size:14px;
+}
+.chat-input-row input::placeholder{ color:var(--cream-dim); }
+.chat-send-btn{
+  width:44px; height:44px; border-radius:12px; background:var(--yellow); color:#3a2705;
+  font-size:17px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700;
+}
+.chat-send-btn:active{ transform:scale(.94); }
+
+/* ---------- Install button / reconnect banner ---------- */
+.install-btn{
+  position:fixed; bottom:max(18px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+  z-index:150; box-shadow:0 6px 20px rgba(0,0,0,.4);
+}
+.reconnect-banner{
+  display:flex; align-items:center; gap:9px; padding:12px 14px; border-radius:13px; margin-bottom:14px;
+  background:rgba(63,127,214,.14); border:1.5px solid rgba(63,127,214,.4); color:#cfe0fb; font-size:13.5px; font-weight:600;
+}
+.ios-install-banner{
+  position:fixed; bottom:max(18px, env(safe-area-inset-bottom)); left:16px; right:16px;
+  z-index:150; display:flex; flex-direction:column; gap:8px; padding:12px 14px; border-radius:13px;
+  background:rgba(255,255,255,.08); border:1.5px solid rgba(255,255,255,.2); color:var(--cream);
+  font-size:13px; line-height:1.4; box-shadow:0 6px 20px rgba(0,0,0,.4);
+}
+.ios-install-row{ display:flex; align-items:center; gap:10px; }
+.ios-install-text{
+  flex:1; background:none; border:none; color:inherit; font:inherit; font-weight:600;
+  text-align:left; padding:0; cursor:pointer;
+}
+.ios-install-row .ios-install-dismiss{
+  background:none; border:none; color:inherit; opacity:.7; font-size:20px; line-height:1;
+  padding:2px 4px; cursor:pointer; flex-shrink:0;
+}
+.ios-install-steps{ margin:0; padding-left:18px; font-weight:400; font-size:12.5px; color:var(--cream-dim); }
+.ios-install-steps li{ margin-bottom:3px; }
+.ios-install-steps li:last-child{ margin-bottom:0; }
+
+/* ---------- Match history ---------- */
+.history-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0;
+  border-top:1px solid rgba(255,255,255,.06); font-size:13px;
+}
+.history-row:first-child{border-top:none;}
+.history-row .who{display:flex; align-items:center; gap:8px; font-weight:600;}
+.history-row .who .dot{width:10px;height:10px;border-radius:50%;}
+.history-row .when{color:var(--cream-dim); font-size:11.5px;}
+
+
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- HOME -->
+  <section class="screen" id="screen-home">
+    <div class="home-topbar">
+      <button class="back-btn" id="btn-open-rules" title="How to play">&#10067;</button>
+      <button class="back-btn" id="btn-open-settings" title="Settings">&#9881;&#65039;</button>
+    </div>
+    <div class="home-hero">
+      <div class="reconnect-banner" id="reconnect-banner" style="display:none;">
+        <span class="waiting-pulse"></span><span id="reconnect-text">Reconnecting to your game&hellip;</span>
+      </div>
+      <div class="logo-row"><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div><div class="logo-die"></div></div>
+      <h1>Ludo</h1>
+      <p class="tag">Race all four of your pieces home. Roll, capture, and don't get sent back to start.</p>
+      <div class="home-actions">
+        <button class="mode-btn" id="btn-local">
+          <div class="icon" style="background:rgba(231,181,62,.18); color:var(--yellow);">&#128241;</div>
+          <div class="txt"><strong>Play on this device</strong><span>Pass the phone around, 2&ndash;4 players</span></div>
+        </button>
+        <button class="mode-btn" id="btn-online">
+          <div class="icon" style="background:rgba(63,127,214,.18); color:var(--blue);">&#128279;</div>
+          <div class="txt"><strong>Play online with friends</strong><span>Share a link &amp; room code</span></div>
+        </button>
+      </div>
+    </div>
+  </section>
+  <button class="btn btn-primary install-btn" id="btn-install" style="display:none;">&#11015;&#65039; Install App</button>
+  <div class="ios-install-banner" id="ios-install-banner" style="display:none;">
+    <div class="ios-install-row">
+      <button type="button" class="ios-install-text" id="ios-install-toggle" aria-expanded="false" aria-controls="ios-install-steps">
+        &#128241; Install this app &mdash; tap for how
+      </button>
+      <button type="button" class="ios-install-dismiss" id="btn-ios-install-dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+    <ol class="ios-install-steps" id="ios-install-steps" style="display:none;">
+      <li>Tap the <strong>Share</strong> icon <span aria-hidden="true">&#8593;</span> in your browser's toolbar.</li>
+      <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+      <li>Tap <strong>Add</strong> in the top-right corner.</li>
+    </ol>
+  </div>
+
+  <!-- RULES -->
+  <section class="screen" id="screen-rules">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>How to play</h2></div>
+    <div class="rules-body">
+      <div class="rule-item">
+        <div class="rule-icon">&#127922;</div>
+        <div class="rule-txt"><strong>Getting a piece out</strong><p>Roll a 6 to move a piece from your yard onto the starting square of your color.</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#8226;&#8226;&#8226;</div>
+        <div class="rule-txt"><strong>Moving around the board</strong><p>Move a piece the number of squares shown on the dice, following the track in a clockwise direction until it reaches your colored home column.</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#9995;</div>
+        <div class="rule-txt"><strong>Capturing</strong><p>Land exactly on a square occupied by an opponent's piece to send it back to their yard &mdash; unless that square is a safe square (marked with a dot on the board).</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#10024;</div>
+        <div class="rule-txt"><strong>Extra turns</strong><p>Rolling a 6, capturing a piece, or getting a piece all the way home earns another roll. Three 6s in a row forfeits the turn.</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#128737;</div>
+        <div class="rule-txt"><strong>Blockades</strong><p>Two of your own pieces sharing a square form a blockade &mdash; opponents can't land on it or pass through it. Toggleable as a house rule.</p></div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">&#127942;</div>
+        <div class="rule-txt"><strong>Winning</strong><p>Get all four of your pieces all the way around the board and into your home column to win. First color to do it takes the game.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="screen" id="screen-settings">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>Settings</h2></div>
+    <div class="setup-body">
+      <div class="settings-section">
+        <span class="field-label">Appearance</span>
+        <div class="theme-pick-row" id="theme-pick-row"></div>
+      </div>
+      <div class="settings-section">
+        <span class="field-label">Sound &amp; feedback</span>
+        <div class="toggle-row">
+          <div class="txt"><strong>Sound effects</strong><span>Dice, captures, and win chime</span></div>
+          <button class="switch" id="toggle-sound"></button>
+        </div>
+        <div class="toggle-row">
+          <div class="txt"><strong>Vibration</strong><span>Buzz on captures and wins</span></div>
+          <button class="switch" id="toggle-haptics"></button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="field-label">Accessibility</span>
+        <div class="toggle-row">
+          <div class="txt"><strong>Shape markers</strong><span>Add a shape to each piece, not just color</span></div>
+          <button class="switch" id="toggle-shapes"></button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="field-label">Stats</span>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="num" id="stat-played">0</div><div class="lbl">Games played</div></div>
+          <div class="stat-box"><div class="num" id="stat-won">0</div><div class="lbl">Games won</div></div>
+        </div>
+        <button class="btn btn-secondary btn-block btn-sm" id="btn-reset-stats" style="margin-top:2px;">Reset stats</button>
+      </div>
+      <div class="settings-section">
+        <span class="field-label">Recent games</span>
+        <div class="card" id="history-card"><div class="muted" id="history-empty">No games yet.</div></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- LOCAL SETUP -->
+  <section class="screen" id="screen-local-setup">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>This device</h2></div>
+    <div class="setup-body">
+      <div>
+        <span class="field-label">Players (tap to include)</span>
+        <div class="chip-row" id="local-color-chips"></div>
+      </div>
+      <div id="local-name-rows" style="display:flex; flex-direction:column; gap:9px;"></div>
+      <div>
+        <span class="field-label">House rules</span>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="toggle-row">
+          <div class="txt"><strong>Three 6s forfeits turn</strong><span>Rolling three 6s in a row ends your turn with no move</span></div>
+          <button class="switch" id="toggle-rule-three-sixes"></button>
+        </div>
+        <div class="toggle-row">
+          <div class="txt"><strong>Blockades</strong><span>Two of your pieces on one square block opponents from passing</span></div>
+          <button class="switch" id="toggle-rule-blockades"></button>
+        </div>
+        </div>
+      </div>
+      <div class="spacer" style="flex:1;"></div>
+      <button class="btn btn-primary btn-block" id="btn-local-start">Start Game</button>
+    </div>
+  </section>
+
+  <!-- ONLINE MENU -->
+  <section class="screen" id="screen-online-menu">
+    <div class="topbar"><button class="back-btn" data-back="screen-home">&larr;</button><h2>Play online</h2></div>
+    <div class="setup-body">
+      <p class="muted">Share this app's link or file with friends, then meet up with a room code below. Moves sync every couple of seconds &mdash; no need to refresh.</p>
+      <div id="online-status-banner" style="display:none;"></div>
+      <button class="mode-btn" id="btn-create-room">
+        <div class="icon" style="background:rgba(63,158,91,.18); color:var(--green);">&#65291;</div>
+        <div class="txt"><strong>Create a room</strong><span>You'll get a code to share</span></div>
+      </button>
+      <button class="mode-btn" id="btn-join-room">
+        <div class="icon" style="background:rgba(214,69,60,.18); color:var(--red);">&#8987;</div>
+        <div class="txt"><strong>Join a room</strong><span>Enter a friend's code</span></div>
+      </button>
+    </div>
+  </section>
+
+  <!-- CREATE ROOM -->
+  <section class="screen" id="screen-create">
+    <div class="topbar"><button class="back-btn" data-back="screen-online-menu">&larr;</button><h2>Create room</h2></div>
+    <div class="setup-body">
+      <div>
+        <span class="field-label">Your name</span>
+        <input type="text" id="create-name" maxlength="16" placeholder="Player 1">
+      </div>
+      <div>
+        <span class="field-label">Your color</span>
+        <div class="chip-row" id="create-color-chips"></div>
+      </div>
+      <div>
+        <span class="field-label">Total seats</span>
+        <div class="stepper">
+          <button id="create-seats-minus" type="button">&minus;</button>
+          <div class="count" id="create-seats-count">4</div>
+          <button id="create-seats-plus" type="button">+</button>
+        </div>
+      </div>
+      <div>
+        <span class="field-label">House rules</span>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="toggle-row">
+          <div class="txt"><strong>Three 6s forfeits turn</strong><span>Applies to everyone at this table</span></div>
+          <button class="switch" id="toggle-create-rule-three-sixes"></button>
+        </div>
+        <div class="toggle-row">
+          <div class="txt"><strong>Blockades</strong><span>Two of a color's pieces on one square block opponents from passing</span></div>
+          <button class="switch" id="toggle-create-rule-blockades"></button>
+        </div>
+        </div>
+      </div>
+      <div class="spacer" style="flex:1;"></div>
+      <button class="btn btn-primary btn-block" id="btn-create-confirm">Create Room</button>
+    </div>
+  </section>
+
+  <!-- JOIN ROOM -->
+  <section class="screen" id="screen-join">
+    <div class="topbar"><button class="back-btn" data-back="screen-online-menu">&larr;</button><h2>Join room</h2></div>
+    <div class="setup-body">
+      <div>
+        <span class="field-label">Room code</span>
+        <input type="text" id="join-code" class="code-input" maxlength="5" placeholder="ABCDE">
+      </div>
+      <div>
+        <span class="field-label">Your name</span>
+        <input type="text" id="join-name" maxlength="16" placeholder="Player">
+      </div>
+      <div id="join-color-section" style="display:none;">
+        <span class="field-label">Your color</span>
+        <div class="chip-row" id="join-color-chips"></div>
+      </div>
+      <p class="muted" id="join-status"></p>
+      <div class="spacer" style="flex:1;"></div>
+      <button class="btn btn-secondary btn-block" id="btn-join-check">Find Room</button>
+      <button class="btn btn-primary btn-block" id="btn-join-confirm" style="display:none; margin-top:10px;">Join Room</button>
+      <button class="btn btn-secondary btn-block" id="btn-spectate-confirm" style="display:none; margin-top:10px;">&#128065; Watch as Spectator</button>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section class="screen" id="screen-lobby">
+    <div class="topbar"><button class="back-btn" id="lobby-back">&larr;</button><h2>Lobby</h2></div>
+    <div class="setup-body">
+      <div class="ticket">
+        <div class="lbl">Room Code</div>
+        <div class="code" id="lobby-code">&mdash;</div>
+        <div class="hint">Tell your friends to tap "Join a room"</div>
+      </div>
+      <button class="btn btn-secondary btn-block btn-sm" id="btn-copy-code">Share invite link</button>
+      <div>
+        <span class="field-label">Seats</span>
+        <div class="seats" id="lobby-seats"></div>
+      </div>
+      <p class="muted" id="lobby-rules-note" style="margin-top:-6px;"></p>
+      <div class="spacer" style="flex:1;"></div>
+      <div id="lobby-host-area"></div>
+      <div id="lobby-guest-area" class="center-col muted" style="display:none;">
+  <span class="waiting-pulse"></span>Waiting for the host to start the game&hellip;
+  <div id="lobby-debug" style="margin-top:14px; padding:10px 14px; background:rgba(0,0,0,.4); border-radius:10px; font-size:11px; font-family:monospace; color:#ffd; text-align:left; width:100%; max-height:160px; overflow-y:auto; word-break:break-all;"></div>
+</div>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen" id="screen-game">
+    <div class="game-top">
+      <button class="icon-btn" id="btn-leave-game" title="Exit game" aria-label="Exit game">&larr;</button>
+      <div class="turn-banner">
+        <div class="dot" id="turn-dot"></div>
+        <div class="info">
+          <div class="who" id="turn-who">&mdash;</div>
+          <div class="what" id="turn-what">&mdash;</div>
+        </div>
+        <span class="turn-timer-badge" id="turn-timer"></span>
+      </div>
+      <button class="icon-btn" id="btn-chat-toggle" style="display:none;">&#128172;<span class="chat-badge" id="chat-badge" style="display:none;">0</span></button>
+      <button class="icon-btn" id="btn-log-toggle">&#128220;</button>
+    </div>
+
+    <div id="game-connection-banner" class="status-banner warn" style="display:none; margin:0 16px 10px;"><span class="waiting-pulse"></span>Connection lost &mdash; retrying&hellip;</div>
+
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+
+    <div class="controls">
+      <div class="dice-wrap">
+        <div class="dice" id="dice" role="img" aria-label="Dice">
+          <div class="pip" data-i="0"></div><div class="pip" data-i="1"></div><div class="pip" data-i="2"></div>
+          <div class="pip" data-i="3"></div><div class="pip" data-i="4"></div><div class="pip" data-i="5"></div>
+          <div class="pip" data-i="6"></div><div class="pip" data-i="7"></div><div class="pip" data-i="8"></div>
+        </div>
+      </div>
+      <div class="roll-area">
+        <button class="btn btn-primary" id="btn-roll">Roll Dice</button>
+        <div id="extra-tag-area"></div>
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-block btn-sm" id="btn-hint" style="display:none; margin-top:10px; margin-bottom:14px;">&#10024; Suggest a move</button>
+
+    <div class="card log-card" id="log-card" style="display:none;">
+      <span class="field-label">Game log</span>
+      <div id="log-lines"></div>
+    </div>
+
+    <div class="reaction-row" id="reaction-row" style="display:none;"></div>
+
+    <div class="chat-overlay" id="chat-overlay" style="display:none;">
+      <div class="chat-panel">
+        <div class="chat-panel-head">
+          <strong>Chat</strong>
+          <button class="icon-btn" id="btn-chat-close">&times;</button>
+        </div>
+        <div class="chat-messages" id="chat-messages"><div class="chat-empty">No messages yet &mdash; say hi!</div></div>
+        <form class="chat-input-row" id="chat-form">
+          <input type="text" id="chat-input" placeholder="Message the table&hellip;" maxlength="200" autocomplete="off">
+          <button type="submit" class="chat-send-btn" id="chat-send">&#10148;</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAME OVER -->
+  <section class="screen" id="screen-gameover">
+    <div class="gameover-body">
+      <div class="trophy">&#127942;</div>
+      <div class="muted" style="text-transform:uppercase; letter-spacing:2px; font-size:12px; font-weight:700;">Winner</div>
+      <div class="win-color" id="gameover-color">&mdash;</div>
+      <div class="gameover-actions">
+        <button class="btn btn-primary btn-block" id="btn-play-again">Play Again</button>
+        <button class="btn btn-secondary btn-block" id="btn-share-result">Share Result</button>
+        <button class="btn btn-secondary btn-block" id="btn-gameover-home">Back to Home</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+<div id="aria-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+<canvas id="confetti-canvas"></canvas>
+
+<script>
+(function(){
+"use strict";
+
+/* ======================================================================
+   GEOMETRY  (verified separately: 52 unique cells, correct adjacency,
+   home-column entries adjacent to each color's lap-completion cell)
+   ====================================================================== */
+function rotate(r,c){ return [c, 14-r]; }
+var quarter0 = [[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[6,6],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6]];
+function rotateList(list){ return list.map(function(p){ return rotate(p[0],p[1]); }); }
+var quarter1 = rotateList(quarter0), quarter2 = rotateList(quarter1), quarter3 = rotateList(quarter2);
+var MAIN_TRACK = quarter0.concat(quarter1, quarter2, quarter3); // 52 cells, [row,col]
+
+var COLORS = {
+  red:    { startIdx: 1,  home:[[7,0],[7,1],[7,2],[7,3],[7,4],[7,5]],       yardBox:[0,0], trayCell:[7,6], hex:'var(--red)',    deep:'var(--red-deep)',    label:'Red' },
+  green:  { startIdx: 14, home:[[0,7],[1,7],[2,7],[3,7],[4,7],[5,7]],       yardBox:[0,9], trayCell:[6,7], hex:'var(--green)',  deep:'var(--green-deep)',  label:'Green' },
+  yellow: { startIdx: 27, home:[[7,14],[7,13],[7,12],[7,11],[7,10],[7,9]],  yardBox:[9,9], trayCell:[7,8], hex:'var(--yellow)', deep:'var(--yellow-deep)', label:'Yellow' },
+  blue:   { startIdx: 40, home:[[14,7],[13,7],[12,7],[11,7],[10,7],[9,7]], yardBox:[9,0], trayCell:[8,7], hex:'var(--blue)',   deep:'var(--blue-deep)',   label:'Blue' }
+};
+var ALL_COLORS = ['red','green','yellow','blue'];
+var SAFE_IDX = new Set([1,9,14,22,27,35,40,48]);
+
+function globalIdxFor(color, p){ if(p<0||p>50) return null; return (COLORS[color].startIdx + p) % 52; }
+function cellCoordFor(color, p){
+  if(p<0) return null;
+  if(p<=50) return MAIN_TRACK[globalIdxFor(color,p)];
+  if(p<=56) return COLORS[color].home[p-51];
+  return null; // finished
+}
+
+/* ======================================================================
+   GAME ENGINE
+   ====================================================================== */
+function newGame(colorList, names, aiColors, aiDifficulty, rules){
+  var pieces = [];
+  colorList.forEach(function(c){
+    for(var i=0;i<4;i++) pieces.push({color:c, idx:i, p:-1});
+  });
+  return {
+    colors: colorList.slice(),
+    names: Object.assign({}, names),
+    aiColors: (aiColors||[]).slice(),
+    aiDifficulty: Object.assign({}, aiDifficulty),
+    rules: Object.assign({ threeSixesForfeit:true, blockades:true }, rules||{}),
+    pieces: pieces,
+    turn: 0,
+    dice: null,
+    diceRolled: false,
+    consecutiveSixes: 0,
+    movable: [],
+    log: [],
+    status: 'playing',
+    winner: null,
+    lastMove: null,
+    justGotExtraTurn: false,
+    turnStartedAt: Date.now(),
+    afkSkips: {}
+  };
+}
+
+function findPiece(game, color, idx){
+  for(var i=0;i<game.pieces.length;i++){
+    var p = game.pieces[i];
+    if(p.color===color && p.idx===idx) return p;
+  }
+  return null;
+}
+
+// A "blockade" is two or more of one color's pieces sharing a main-track
+// square. Opponents can neither land on nor pass through it — the classic
+// Ludo house rule. Home columns can't be blockaded (only one color ever
+// enters its own home column), so this only ever applies to the shared
+// 0-50 track. Toggleable per-game via rules.blockades (default on).
+function blockadesEnabled(game){ return !game.rules || game.rules.blockades !== false; }
+
+function isBlockadeCell(game, gIdx, excludeColor){
+  var counts = {};
+  for(var i=0;i<game.pieces.length;i++){
+    var pc = game.pieces[i];
+    if(pc.color===excludeColor) continue;
+    if(pc.p<0 || pc.p>50) continue;
+    if(globalIdxFor(pc.color, pc.p)!==gIdx) continue;
+    counts[pc.color] = (counts[pc.color]||0) + 1;
+    if(counts[pc.color]>=2) return true;
+  }
+  return false;
+}
+
+// Checks every square a piece would cross between oldP (exclusive) and
+// newP (inclusive) on the shared track — not just the landing square —
+// since a blockade stops passage, not only occupation.
+function isPathBlockedByOthers(game, color, oldP, newP){
+  if(!blockadesEnabled(game)) return false;
+  var start = (oldP===-1) ? 0 : oldP+1;
+  var end = Math.min(newP, 50);
+  for(var p=start; p<=end; p++){
+    if(isBlockadeCell(game, globalIdxFor(color, p), color)) return true;
+  }
+  return false;
+}
+
+function legalMoves(game, color, roll){
+  var out = [];
+  for(var idx=0; idx<4; idx++){
+    var piece = findPiece(game, color, idx);
+    if(piece.p===57) continue;
+    if(piece.p===-1){
+      if(roll!==6) continue;
+      if(isPathBlockedByOthers(game, color, -1, 0)) continue;
+      out.push(idx);
+      continue;
+    }
+    var newP = piece.p+roll;
+    if(newP>57) continue;
+    if(isPathBlockedByOthers(game, color, piece.p, newP)) continue;
+    out.push(idx);
+  }
+  return out;
+}
+
+function colorLabel(game, color){ return (game.names && game.names[color]) || COLORS[color].label; }
+
+function engineRoll(game){
+  if(game.status!=='playing') return;
+  if(game.diceRolled) return;
+  var roll = 1+Math.floor(Math.random()*6);
+  game.dice = roll;
+  game.diceRolled = true;
+  game.consecutiveSixes = (roll===6) ? game.consecutiveSixes+1 : 0;
+  var color = game.colors[game.turn];
+  var nm = colorLabel(game,color);
+  game.afkSkips = game.afkSkips || {};
+  game.afkSkips[color] = 0;
+
+  var threeSixesRuleOn = !game.rules || game.rules.threeSixesForfeit !== false;
+  if(threeSixesRuleOn && game.consecutiveSixes>=3){
+    game.log.unshift(nm + ' rolled three 6s in a row \u2014 turn forfeited.');
+    game.movable = [];
+    game.justGotExtraTurn = false;
+    endTurn(game);
+    return;
+  }
+  var moves = legalMoves(game, color, roll);
+  game.movable = moves;
+  if(moves.length===0){
+    game.log.unshift(nm + ' rolled ' + roll + ' \u2014 no legal move.');
+    game.justGotExtraTurn = false;
+    endTurn(game);
+  }
+}
+
+function engineMove(game, pieceIdx){
+  if(game.status!=='playing') return;
+  if(!game.diceRolled) return;
+  if(game.movable.indexOf(pieceIdx)===-1) return;
+  var color = game.colors[game.turn];
+  var nm = colorLabel(game,color);
+  var roll = game.dice;
+  var piece = findPiece(game, color, pieceIdx);
+  var newP = (piece.p===-1) ? 0 : piece.p+roll;
+  piece.p = newP;
+  game.lastMove = {color:color, idx:pieceIdx};
+
+  var captured = [];
+  if(newP>=0 && newP<=50){
+    var gIdx = globalIdxFor(color, newP);
+    if(!SAFE_IDX.has(gIdx)){
+      game.pieces.forEach(function(pc){
+        if(pc.color===color) return;
+        if(pc.p<0 || pc.p>50) return;
+        if(globalIdxFor(pc.color, pc.p)===gIdx){ pc.p=-1; captured.push(pc); }
+      });
+    }
+  }
+  var finished = newP===57;
+
+  if(captured.length){
+    var names = captured.map(function(c){ return colorLabel(game,c.color); }).join(', ');
+    game.log.unshift(nm + ' captured ' + names + '\u2019s piece! Sent home.');
+  } else if(finished){
+    game.log.unshift(nm + ' brought a piece home! \u2728');
+  } else {
+    game.log.unshift(nm + ' rolled ' + roll + ' and moved a piece.');
+  }
+
+  var allHome = game.pieces.filter(function(p){ return p.color===color; }).every(function(p){ return p.p===57; });
+  if(allHome){
+    game.status='finished';
+    game.winner=color;
+    game.log.unshift(nm + ' wins the game! \uD83C\uDFC6');
+    game.diceRolled=false; game.dice=null; game.movable=[];
+    return;
+  }
+
+  var extra = (roll===6 || captured.length>0 || finished) && game.consecutiveSixes<3;
+  game.diceRolled=false;
+  game.dice=null;
+  game.movable=[];
+  game.justGotExtraTurn = extra;
+  if(!extra){
+    endTurn(game);
+  } else {
+    // Only keep the six-streak going if the extra turn came from rolling a 6;
+    // captures and finishing pieces break the streak.
+    if(roll!==6) game.consecutiveSixes = 0;
+    game.turnStartedAt = Date.now();
+  }
+}
+
+function endTurn(game){
+  game.consecutiveSixes=0;
+  game.diceRolled=false;
+  game.dice=null;
+  game.movable=[];
+  game.justGotExtraTurn=false;
+  game.turn = (game.turn+1) % game.colors.length;
+  game.turnStartedAt = Date.now();
+}
+
+/* ---------- simple AI heuristic ----------
+   Prefers, in order: finishing a piece, capturing an opponent, getting a
+   piece out of the yard, landing on a safe square or forming a blockade,
+   then generally the most-advanced piece. Nothing exhaustive — just enough
+   to feel purposeful.
+   Three difficulty tiers, all built on the same scoring pass:
+     - easy:   mostly random, only nudged toward leaving the yard.
+     - medium: uses the real scoring but isn't optimal — it settles for its
+               second-best option about a third of the time, so it's beatable.
+     - hard:   always takes the top-scored move. */
+function chooseAIMove(game, color){
+  var moves = game.movable;
+  if(!moves || moves.length===0) return null;
+  if(moves.length===1) return moves[0];
+  var difficulty = (game.aiDifficulty && game.aiDifficulty[color]) || 'hard';
+  if(difficulty==='easy'){
+    // Easy: mostly random, with only a mild nudge toward getting pieces out
+    // of the yard so games don't stall forever on an all-easy-AI table.
+    var yardMoves = moves.filter(function(idx){ return findPiece(game,color,idx).p===-1; });
+    if(yardMoves.length && Math.random()<0.5) return yardMoves[Math.floor(Math.random()*yardMoves.length)];
+    return moves[Math.floor(Math.random()*moves.length)];
+  }
+  var roll = game.dice;
+  var scored = moves.map(function(idx){
+    var piece = findPiece(game, color, idx);
+    var oldP = piece.p;
+    var newP = (oldP===-1) ? 0 : oldP+roll;
+    var score = 0;
+    if(newP===57) score += 100;
+    if(newP>=0 && newP<=50){
+      var gIdx = globalIdxFor(color, newP);
+      if(!SAFE_IDX.has(gIdx)){
+        var ownAlreadyThere = 0;
+        game.pieces.forEach(function(pc){
+          if(pc.p<0 || pc.p>50) return;
+          if(globalIdxFor(pc.color, pc.p)!==gIdx) return;
+          if(pc.color===color){ ownAlreadyThere++; return; }
+          score += 80; // captures an opponent
+        });
+        // Pairing up with our own piece forms a blockade opponents can't
+        // pass — valuable enough to actively seek out, not just tolerate.
+        if(blockadesEnabled(game) && ownAlreadyThere>=1) score += 35;
+      }
+      if(SAFE_IDX.has(gIdx)) score += 10;
+    }
+    if(oldP===-1) score += 40;
+    score += newP*0.3;
+    return { idx: idx, score: score };
+  });
+  scored.sort(function(a,b){ return b.score - a.score; });
+  if(difficulty==='medium' && scored.length>1 && Math.random()<0.35) return scored[1].idx;
+  return scored[0].idx;
+}
+
+/* ======================================================================
+   APP STATE / NAVIGATION
+   ====================================================================== */
+var App = {
+  screen:'screen-home',
+  mode:null, // 'local' | 'online'
+  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set(), aiDifficulty:{}, rules:{ threeSixesForfeit:true, blockades:true } },
+  online:{ roomCode:null, myColor:null, myClientId:null, myName:null, isHost:false, isSpectator:false, pollHandle:null, joinedRoom:null, version:null, lastReactionTs:0, chatMessages:[], chatOpen:false, chatUnread:0, chatLastTs:0, _chatSynced:false },
+  game:null,
+  soundOn:true,
+  hapticsOn:true,
+  shapesOn:false,
+  theme:'dark',
+  animating:false,
+  travelingPieceKey:null,
+  installPromptEvent:null
+};
+
+/* ---------- persisted settings / local prefs / stats ---------- */
+var SETTINGS_KEY = 'ludo_settings_v1';
+var LOCAL_PREFS_KEY = 'ludo_local_prefs_v1';
+var STATS_KEY = 'ludo_stats_v1';
+var DEVICE_ID_KEY = 'ludo_device_id_v1';
+var ONLINE_SESSION_KEY = 'ludo_online_session_v1';
+// AFK handling: the host skips a stalled turn after AFK_SKIP_MS of inactivity.
+// Any other seated player can also force the skip after the longer
+// AFK_FALLBACK_MS, in case the host itself is the one who's gone.
+var AFK_SKIP_MS = 45000;
+var AFK_FALLBACK_MS = 90000;
+
+function loadJSON(key){
+  try{
+    var raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveJSON(key, obj){
+  try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){ /* ignore quota/private-mode errors */ }
+}
+
+// Stable per-device id, persisted across reloads so a guest reconnecting to
+// a room is recognized as the same seat instead of getting a brand-new id
+// every time the page loads.
+(function initDeviceId(){
+  var id = null;
+  try{ id = localStorage.getItem(DEVICE_ID_KEY); }catch(e){}
+  if(!id){
+    id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('c'+Math.random().toString(36).slice(2)+Date.now());
+    try{ localStorage.setItem(DEVICE_ID_KEY, id); }catch(e){}
+  }
+  App.online.myClientId = id;
+})();
+
+function loadSettings(){
+  var s = loadJSON(SETTINGS_KEY);
+  if(!s) return;
+  if(typeof s.soundOn==='boolean') App.soundOn = s.soundOn;
+  if(typeof s.hapticsOn==='boolean') App.hapticsOn = s.hapticsOn;
+  if(typeof s.shapesOn==='boolean') App.shapesOn = s.shapesOn;
+  if(s.theme==='light' || s.theme==='dark') App.theme = s.theme;
+}
+function saveSettings(){
+  saveJSON(SETTINGS_KEY, { soundOn:App.soundOn, hapticsOn:App.hapticsOn, shapesOn:App.shapesOn, theme:App.theme });
+}
+
+function loadLocalPrefs(){
+  var p = loadJSON(LOCAL_PREFS_KEY);
+  if(!p) return;
+  if(Array.isArray(p.selected) && p.selected.length>=2){
+    App.local.selected = new Set(p.selected.filter(function(c){ return ALL_COLORS.indexOf(c)!==-1; }));
+  }
+  if(p.names && typeof p.names==='object') App.local.names = p.names;
+  if(Array.isArray(p.ai)) App.local.ai = new Set(p.ai);
+  if(p.aiDifficulty && typeof p.aiDifficulty==='object') App.local.aiDifficulty = p.aiDifficulty;
+  if(p.rules && typeof p.rules==='object') App.local.rules = Object.assign({ threeSixesForfeit:true, blockades:true }, p.rules);
+}
+function saveLocalPrefs(){
+  saveJSON(LOCAL_PREFS_KEY, {
+    selected: Array.from(App.local.selected),
+    names: App.local.names,
+    ai: Array.from(App.local.ai),
+    aiDifficulty: App.local.aiDifficulty,
+    rules: App.local.rules
+  });
+}
+
+function loadStats(){
+  return Object.assign({ played:0, won:0, history:[] }, loadJSON(STATS_KEY) || {});
+}
+function recordGameStarted(){
+  var s = loadStats(); s.played += 1; saveJSON(STATS_KEY, s);
+}
+function recordGameWon(){
+  var s = loadStats(); s.won += 1; saveJSON(STATS_KEY, s);
+}
+function recordHistoryEntry(entry){
+  var s = loadStats();
+  if(!Array.isArray(s.history)) s.history = [];
+  s.history.unshift(entry);
+  s.history = s.history.slice(0, 5);
+  saveJSON(STATS_KEY, s);
+}
+
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', App.theme==='light' ? 'light' : 'dark');
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', App.theme==='light' ? '#eef2ea' : '#133229');
+}
+function applyShapes(){
+  if(App.shapesOn) document.documentElement.setAttribute('data-shapes', 'on');
+  else document.documentElement.removeAttribute('data-shapes');
+}
+
+function vibrate(pattern){
+  if(!App.hapticsOn) return;
+  try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){ /* unsupported */ }
+}
+
+/* ---------- online session persistence (for reconnect) ---------- */
+function saveOnlineSession(){
+  if(!App.online.roomCode || !App.online.myColor) return;
+  saveJSON(ONLINE_SESSION_KEY, {
+    roomCode: App.online.roomCode,
+    myColor: App.online.myColor,
+    myName: App.online.myName,
+    isHost: App.online.isHost
+  });
+}
+function clearOnlineSession(){
+  try{ localStorage.removeItem(ONLINE_SESSION_KEY); }catch(e){}
+}
+
+// Called once at startup. If we have a saved room/seat from before a reload
+// (or the app being backgrounded and killed), silently try to rejoin it —
+// matched by the stable per-device client id, not by color, in case the
+// color assignment ever needs to be re-derived from the room's seat list.
+function attemptReconnect(){
+  var session = loadJSON(ONLINE_SESSION_KEY);
+  if(!session || !session.roomCode) return;
+  var banner = document.getElementById('reconnect-banner');
+  if(banner) banner.style.display='flex';
+  roomGet(session.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable){
+      if(banner) banner.style.display='none';
+      return; // leave the session in place — connection issue, not a stale room
+    }
+    var room = res.room;
+    if(!room){ clearOnlineSession(); if(banner) banner.style.display='none'; return; }
+    var mySeat = null;
+    (room.seats||[]).forEach(function(s){ if(s.clientId===App.online.myClientId) mySeat = s; });
+    if(!mySeat){ clearOnlineSession(); if(banner) banner.style.display='none'; return; }
+
+    App.mode='online';
+    App.online.roomCode = session.roomCode;
+    App.online.myColor = mySeat.color;
+    App.online.myName = mySeat.name;
+    App.online.isHost = (room.hostClientId===App.online.myClientId);
+    App.online.isSpectator = false;
+    App.online.lastReactionTs = Date.now();
+    if(banner) banner.style.display='none';
+
+    if(room.status==='lobby'){
+      enterLobby();
+    } else if(room.game){
+      App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
+    } else {
+      clearOnlineSession();
+    }
+  }).catch(function(){
+    if(banner) banner.style.display='none';
+  });
+}
+
+loadSettings();
+loadLocalPrefs();
+applyTheme();
+applyShapes();
+
+// `fromHistoryNav` is true only when show() is being called in reaction to
+// a back gesture/browser popstate (see performBackNavigation below) — in
+// that case the browser has already moved the history position itself, so
+// we just replace the current entry's state to match what's now on screen
+// instead of pushing a brand new one.
+var _historyInitialized = false;
+function show(id, fromHistoryNav){
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  var changedScreen = App.screen !== id;
+  App.screen = id;
+  var installBtn = document.getElementById('btn-install');
+  if(installBtn) installBtn.style.display = (App.installPromptEvent && id==='screen-home') ? 'block' : 'none';
+  var iosBanner = document.getElementById('ios-install-banner');
+  if(iosBanner && iosBanner.dataset.eligible==='1') iosBanner.style.display = (id==='screen-home') ? 'flex' : 'none';
+  if(window.history && typeof history.pushState==='function'){
+    if(fromHistoryNav){
+      history.replaceState({screen:id}, '', '');
+    } else if(!_historyInitialized){
+      history.replaceState({screen:id}, '', '');
+      _historyInitialized = true;
+    } else if(changedScreen){
+      history.pushState({screen:id}, '', '');
+    }
+  }
+}
+
+// A phone's back gesture/button used to exit the app outright, since the
+// single-page screen swap never touched browser history. Each screen
+// change now pushes a history entry (above), and this reacts to the
+// resulting popstate by running the same cleanup the matching on-screen
+// back button would (so nothing is left half-torn-down), landing on the
+// screen the browser says we've gone back to.
+function performBackNavigation(target){
+  var leaving = App.screen;
+  if(leaving==='screen-game'){
+    if(App.game && App.game.status==='playing' && !(App.mode==='online' && App.online.isSpectator)){
+      var msg = App.mode==='online'
+        ? 'Leave this game? Your seat will open up, and if you\u2019re gone too long the computer may take over your pieces.'
+        : 'Exit this game? Progress will be lost.';
+      if(!confirm(msg)){
+        // They backed out of leaving — the gesture already moved history
+        // back one step, so push the game screen back on top to undo that.
+        history.pushState({screen:'screen-game'}, '', '');
+        return;
+      }
+    }
+    stopPolling(); stopTitleFlash(); gameConnFailCount = 0; setGameConnBanner(false); closeChatPanel();
+    App.online.chatMessages = []; App.online.chatUnread = 0; App.online._chatSynced = false; App.online.chatLastTs = 0;
+    App.online.isSpectator = false; App.game = null; App.mode = null; clearOnlineSession();
+    show('screen-home', true);
+    return;
+  }
+  if(leaving==='screen-gameover'){
+    stopPolling(); stopTitleFlash(); gameConnFailCount = 0; setGameConnBanner(false); closeChatPanel();
+    App.online.chatMessages = []; App.online.chatUnread = 0; App.online._chatSynced = false; App.online.chatLastTs = 0;
+    App.online.isSpectator = false; App.game = null; App.mode = null; clearOnlineSession();
+    show('screen-home', true);
+    return;
+  }
+  if(leaving==='screen-lobby'){
+    _stopLobbyLoop(); stopPolling(); App.mode=null; App.online.isSpectator=false; clearOnlineSession();
+    show('screen-online-menu', true);
+    return;
+  }
+  stopPolling();
+  show(target, true);
+}
+window.addEventListener('popstate', function(e){
+  var target = (e.state && e.state.screen) || 'screen-home';
+  performBackNavigation(target);
+});
+document.querySelectorAll('[data-back]').forEach(function(b){
+  b.addEventListener('click', function(){
+    history.back();
+  });
+});
+
+var toastTimer=null;
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+
+// Pushes text into the aria-live region so screen readers narrate dice
+// rolls and moves. Cleared and re-set on a tick so repeated identical
+// messages (e.g. two 6s in a row) still get announced.
+function announce(msg){
+  var el = document.getElementById('aria-announcer');
+  if(!el || !msg) return;
+  el.textContent = '';
+  setTimeout(function(){ el.textContent = msg; }, 30);
+}
+
+/* ---------- sound (tiny synth blips, no external assets) ---------- */
+var actx=null;
+function beep(freq, dur, type){
+  if(!App.soundOn) return;
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    var o = actx.createOscillator(); var g = actx.createGain();
+    o.type = type||'sine'; o.frequency.value = freq;
+    g.gain.value = .07;
+    o.connect(g); g.connect(actx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime+dur);
+    o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+function sfxRoll(){ beep(330,.12,'square'); }
+function sfxCapture(){ beep(180,.25,'sawtooth'); }
+function sfxWin(){ [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){ beep(f,.3,'sine'); }, i*120); }); }
+
+/* ---------- confetti burst (canvas, no external assets) ---------- */
+function launchConfetti(){
+  var canvas = document.getElementById('confetti-canvas');
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  var palette = ['#d6453c','#2f9e5b','#e7b53e','#3f7fd6','#ffffff'];
+  var pieces = [];
+  var n = 110;
+  for(var i=0;i<n;i++){
+    pieces.push({
+      x: Math.random()*canvas.width,
+      y: -30*dpr - Math.random()*canvas.height*0.4,
+      vx: (Math.random()-0.5)*2.4*dpr,
+      vy: (2+Math.random()*3)*dpr,
+      size: (4+Math.random()*5)*dpr,
+      color: palette[Math.floor(Math.random()*palette.length)],
+      rot: Math.random()*Math.PI*2,
+      vr: (Math.random()-0.5)*0.3
+    });
+  }
+  var start = Date.now();
+  var duration = 2600;
+  function frame(){
+    var elapsed = Date.now()-start;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(function(p){
+      p.x += p.vx; p.y += p.vy; p.vy += 0.03*dpr; p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size/2, -p.size/4, p.size, p.size/2);
+      ctx.restore();
+    });
+    if(elapsed<duration && App.screen==='screen-gameover'){
+      requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ======================================================================
+   BOARD RENDERING (static board built once, pieces re-rendered on change)
+   ====================================================================== */
+var boardEl = document.getElementById('board');
+function gridPlace(el, r, c, rs, cs){
+  el.style.gridRow = (r+1) + ' / span ' + (rs||1);
+  el.style.gridColumn = (c+1) + ' / span ' + (cs||1);
+}
+
+function buildBoardStatic(){
+  boardEl.innerHTML='';
+  MAIN_TRACK.forEach(function(rc, idx){
+    var d = document.createElement('div');
+    d.className = 'cell path' + (SAFE_IDX.has(idx) ? ' safe' : '');
+    gridPlace(d, rc[0], rc[1]);
+    boardEl.appendChild(d);
+  });
+  ALL_COLORS.forEach(function(color){
+    COLORS[color].home.forEach(function(rc){
+      var d = document.createElement('div');
+      d.className = 'cell home-cell';
+      d.style.background = COLORS[color].hex;
+      d.style.opacity = '.88';
+      gridPlace(d, rc[0], rc[1]);
+      boardEl.appendChild(d);
+    });
+  });
+  ALL_COLORS.forEach(function(color){
+    var rc = COLORS[color].trayCell;
+    var d = document.createElement('div');
+    d.className = 'cell hub-fill';
+    d.style.background = COLORS[color].hex;
+    d.style.opacity = '.22';
+    gridPlace(d, rc[0], rc[1]);
+    d.id = 'tray-'+color;
+    boardEl.appendChild(d);
+  });
+  var centerD = document.createElement('div');
+  centerD.className = 'cell center';
+  centerD.style.background = 'linear-gradient(135deg, var(--red), var(--yellow), var(--green), var(--blue))';
+  centerD.innerHTML = '<span class="center-badge">\u2605</span>';
+  gridPlace(centerD, 7, 7);
+  boardEl.appendChild(centerD);
+  ALL_COLORS.forEach(function(color){
+    var rc = COLORS[color].yardBox;
+    var y = document.createElement('div');
+    y.className = 'yard';
+    y.style.background = COLORS[color].hex;
+    gridPlace(y, rc[0], rc[1], 6, 6);
+    for(var i=0;i<4;i++){
+      var slot = document.createElement('div');
+      slot.className='yard-slot';
+      slot.id = 'yardslot-'+color+'-'+i;
+      y.appendChild(slot);
+    }
+    boardEl.appendChild(y);
+  });
+}
+buildBoardStatic();
+
+var stackEls = new Map();
+function clearStacks(){
+  stackEls.forEach(function(el){ el.remove(); });
+  stackEls.clear();
+}
+function getStack(r,c){
+  var key = r+'_'+c;
+  if(stackEls.has(key)) return stackEls.get(key);
+  var el = document.createElement('div');
+  el.className='cell-stack';
+  gridPlace(el, r, c);
+  boardEl.appendChild(el);
+  stackEls.set(key, el);
+  return el;
+}
+
+/* ---------- legal-move destination preview ---------- */
+var destMarkerEls = [];
+function clearDestMarkers(){
+  destMarkerEls.forEach(function(el){ el.remove(); });
+  destMarkerEls = [];
+}
+function renderDestinationPreviews(game, myTurnColor, iCanAct){
+  if(!iCanAct || !game.diceRolled || !game.movable || !game.movable.length) return;
+  var roll = game.dice;
+  var seen = {};
+  game.movable.forEach(function(idx){
+    var piece = findPiece(game, myTurnColor, idx);
+    if(!piece) return;
+    var oldP = piece.p;
+    var newP = (oldP===-1) ? 0 : oldP+roll;
+    if(newP>=57) return; // finishing goes straight to the tray — no board cell to mark
+    var rc = cellCoordFor(myTurnColor, newP);
+    if(!rc) return;
+    var key = rc[0]+'_'+rc[1];
+    if(seen[key]) return; // avoid stacking duplicate markers when two pieces share a destination
+    seen[key] = true;
+    var marker = document.createElement('div');
+    marker.className = 'dest-marker';
+    var p = pct(rc[0], rc[1]);
+    marker.style.left = p.left; marker.style.top = p.top;
+    boardEl.appendChild(marker);
+    destMarkerEls.push(marker);
+  });
+}
+
+var COLOR_SHAPES = { red:'\u25B2', green:'\u25A0', yellow:'\u25C6', blue:'\u25CF' };
+function makePieceDot(color, idx, movable, justMoved){
+  var d = document.createElement('div');
+  d.className = 'piece' + (movable?' movable':'') + (justMoved?' justmoved':'');
+  d.style.background = 'linear-gradient(155deg, ' + COLORS[color].hex + ', ' + COLORS[color].deep + ')';
+  d.dataset.color = color; d.dataset.idx = idx;
+  var shape = document.createElement('span');
+  shape.className = 'piece-shape';
+  shape.textContent = COLOR_SHAPES[color];
+  d.appendChild(shape);
+  if(movable){
+    d.tabIndex = 0;
+    d.setAttribute('role', 'button');
+    d.setAttribute('aria-label', 'Move ' + COLORS[color].label + ' piece ' + (parseInt(idx,10)+1));
+    d.addEventListener('keydown', function(e){
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){
+        e.preventDefault();
+        handleMovePiece(color, idx);
+      }
+    });
+  }
+  return d;
+}
+
+/* ======================================================================
+   STEP-BY-STEP "COUNTING" MOVE ANIMATION
+   ====================================================================== */
+var CELL_PCT = 100/15;
+function pct(r,c){ return { left:(c*CELL_PCT)+'%', top:(r*CELL_PCT)+'%' }; }
+var YARD_SLOT_OFFSET = [[1.3,1.3],[1.3,3.7],[3.7,1.3],[3.7,3.7]];
+function yardSlotPct(color, idx){
+  var box = COLORS[color].yardBox;
+  var off = YARD_SLOT_OFFSET[idx];
+  return pct(box[0]+off[0], box[1]+off[1]);
+}
+function posForP(color, idx, p){
+  if(p===-1) return yardSlotPct(color, idx);
+  if(p===57) return pct(7,7);
+  var rc = cellCoordFor(color, p);
+  return pct(rc[0], rc[1]);
+}
+// Build the sequence of intermediate p-values a piece hops through, oldP (exclusive) -> newP (inclusive)
+function getStepsForMove(oldP, newP){
+  var steps = [];
+  if(oldP===-1){ steps.push(0); return steps; } // single hop out of the yard
+  for(var p=oldP+1; p<=newP; p++) steps.push(p);
+  return steps;
+}
+function sfxHop(i){ beep(440 + i*26, .07, 'square'); }
+
+function animateTravel(color, idx, oldP, steps){
+  return new Promise(function(resolve){
+    var wrap = document.createElement('div');
+    wrap.className = 'travel-wrap';
+    wrap.appendChild(makePieceDot(color, idx, false, false));
+    var start = posForP(color, idx, oldP);
+    wrap.style.left = start.left; wrap.style.top = start.top;
+    boardEl.appendChild(wrap);
+    void wrap.offsetWidth; // commit starting position before transitions begin
+
+    var settled = false;
+    function finish(){
+      if(settled) return;
+      settled = true;
+      if(wrap.parentNode) wrap.remove();
+      resolve();
+    }
+    // Safety net: a backgrounded/throttled tab can delay or skip the timer chain
+    // below indefinitely. Without this, App.animating would stay stuck true
+    // forever, silently freezing the whole game (no more polling, no more moves).
+    var watchdogMs = 1200 + steps.length * 500;
+    setTimeout(finish, watchdogMs);
+
+    var i = 0;
+    function nextStep(){
+      if(settled) return;
+      if(i >= steps.length){ finish(); return; }
+      var p = steps[i];
+      var dest = posForP(color, idx, p);
+      wrap.style.left = dest.left; wrap.style.top = dest.top;
+      wrap.classList.add('hop');
+      sfxHop(i);
+      if(steps.length>1){
+        var badge = document.createElement('div');
+        badge.className='hop-count';
+        badge.textContent = (i+1);
+        wrap.appendChild(badge);
+        setTimeout(function(){ badge.remove(); }, 520);
+      }
+      i++;
+      setTimeout(function(){
+        wrap.classList.remove('hop');
+        setTimeout(nextStep, 40);
+      }, 220);
+    }
+    setTimeout(nextStep, 80);
+  });
+}
+
+/* ======================================================================
+   RENDER: game screen (board, dice, turn banner, log)
+   ====================================================================== */
+function canActNow(){
+  if(!App.game) return false;
+  if(App.game.status!=='playing') return false;
+  if(App.mode==='local') return true;
+  var color = App.game.colors[App.game.turn];
+  return color === App.online.myColor;
+}
+// Stricter than canActNow(): also false when it's an AI-controlled color's
+// turn, so humans can't tap in and hijack the computer's move. handleRollClick
+// and handleMovePiece stay gated on canActNow() alone so the AI scheduler's
+// own calls still go through — only the UI entry points (dice tap, roll
+// button) check this before calling them.
+function isHumanTurn(){
+  if(!canActNow()) return false;
+  var color = App.game.colors[App.game.turn];
+  if(App.mode==='local' && App.game.aiColors && App.game.aiColors.indexOf(color)!==-1) return false;
+  return true;
+}
+
+var PIP_PATTERNS = {
+  1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
+};
+function renderDice(){
+  var diceEl = document.getElementById('dice');
+  var value = App.game && App.game.dice;
+  var pips = diceEl.querySelectorAll('.pip');
+  var active = value ? (PIP_PATTERNS[value]||[]) : [];
+  pips.forEach(function(p){
+    var i = parseInt(p.dataset.i,10);
+    p.classList.toggle('on', active.indexOf(i)!==-1);
+  });
+  var disabled = !App.game || App.game.status!=='playing' || !isHumanTurn() || App.game.diceRolled || App.animating;
+  diceEl.classList.toggle('disabled', disabled);
+  var rollBtn = document.getElementById('btn-roll');
+  rollBtn.disabled = disabled;
+  rollBtn.textContent = (App.game && App.game.diceRolled) ? 'Choose a piece' : 'Roll Dice';
+
+  var hintBtn = document.getElementById('btn-hint');
+  if(hintBtn){
+    var showHint = App.game && App.game.status==='playing' && isHumanTurn() && App.game.diceRolled && !App.animating && App.game.movable && App.game.movable.length>1;
+    hintBtn.style.display = showHint ? 'block' : 'none';
+  }
+}
+
+/* ---------- "your turn" tab-title flash ----------
+   When an online tab is backgrounded and it becomes this player's turn,
+   flash the document title so a glance at the tab bar is enough to notice
+   — no permissions needed, unlike the Notification API. Cleared as soon as
+   the tab is foregrounded again, the turn moves on, or the game ends. */
+var DEFAULT_TITLE = document.title;
+var titleFlashHandle = null;
+function startTitleFlash(){
+  if(titleFlashHandle) return;
+  var showAlert = true;
+  titleFlashHandle = setInterval(function(){
+    document.title = showAlert ? '\uD83C\uDFB2 Your turn! \u2014 Ludo' : DEFAULT_TITLE;
+    showAlert = !showAlert;
+  }, 1000);
+}
+function stopTitleFlash(){
+  if(!titleFlashHandle) return;
+  clearInterval(titleFlashHandle);
+  titleFlashHandle = null;
+  document.title = DEFAULT_TITLE;
+}
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden) stopTitleFlash();
+});
+
+function renderGame(){
+  if(!App.game) return;
+  var game = App.game;
+  clearStacks();
+  clearDestMarkers();
+  ALL_COLORS.forEach(function(color){
+    for(var i=0;i<4;i++){ var s = document.getElementById('yardslot-'+color+'-'+i); if(s) s.innerHTML=''; }
+    var tray = document.getElementById('tray-'+color); if(tray) tray.innerHTML='';
+  });
+
+  var myTurnColor = game.colors[game.turn];
+  var iCanAct = isHumanTurn() && !App.animating;
+  renderDestinationPreviews(game, myTurnColor, iCanAct);
+
+  game.pieces.forEach(function(piece){
+    if(App.travelingPieceKey === (piece.color+piece.idx)) return; // shown by the traveling overlay instead
+    var movable = iCanAct && game.diceRolled && piece.color===myTurnColor && game.movable.indexOf(piece.idx)!==-1;
+    var justMoved = game.lastMove && game.lastMove.color===piece.color && game.lastMove.idx===piece.idx;
+    if(piece.p===-1){
+      var slot = document.getElementById('yardslot-'+piece.color+'-'+piece.idx);
+      if(slot) slot.appendChild(makePieceDot(piece.color, piece.idx, movable, false));
+    } else if(piece.p===57){
+      var tray = document.getElementById('tray-'+piece.color);
+      if(tray) tray.appendChild(makePieceDot(piece.color, piece.idx, false, justMoved));
+    } else {
+      var rc = cellCoordFor(piece.color, piece.p);
+      var stack = getStack(rc[0],rc[1]);
+      stack.appendChild(makePieceDot(piece.color, piece.idx, movable, justMoved));
+    }
+  });
+  stackEls.forEach(function(el){ if(el.children.length===1) el.classList.add('single'); });
+
+  var myTurnNow = App.mode==='online' && !App.online.isSpectator && game.status==='playing' && myTurnColor===App.online.myColor;
+  if(myTurnNow && document.hidden) startTitleFlash();
+  else stopTitleFlash();
+
+  document.getElementById('turn-dot').style.background = COLORS[myTurnColor].hex;
+  var isAITurn = game.aiColors && game.aiColors.indexOf(myTurnColor)!==-1;
+  document.getElementById('turn-who').innerHTML = escapeHtml(colorLabel(game, myTurnColor)) +
+    (App.mode==='online' && myTurnColor===App.online.myColor ? ' (You)' : '') +
+    (App.mode==='online' && App.online.isSpectator ? ' <span class="ai-tag">\uD83D\uDC41 Watching</span>' : '') +
+    (isAITurn ? ' <span class="ai-tag">AI</span>' : '');
+
+  var what = '';
+  if(game.status==='finished'){
+    what = 'Game over';
+  } else if(App.animating){
+    what = 'Moving\u2026';
+  } else if(isAITurn){
+    what = colorLabel(game, myTurnColor) + ' (AI) is thinking\u2026';
+  } else if(!canActNow()){
+    what = 'Waiting for ' + colorLabel(game, myTurnColor) + '\u2026';
+  } else if(!game.diceRolled){
+    what = 'Tap the dice to roll';
+  } else if(game.movable.length>0){
+    what = 'Choose a glowing piece to move';
+  } else {
+    what = 'No legal moves\u2026';
+  }
+  document.getElementById('turn-what').textContent = what;
+
+  var extraArea = document.getElementById('extra-tag-area');
+  extraArea.innerHTML='';
+  if(game.dice===null && game.justGotExtraTurn && game.status==='playing'){
+    var tag = document.createElement('div');
+    tag.className='extra-tag';
+    tag.textContent = '\u2728 Roll again!';
+    extraArea.appendChild(tag);
+  }
+
+  renderDice();
+  renderLog();
+  renderReactionRow();
+  renderChatToggle();
+
+  var timerEl = document.getElementById('turn-timer');
+  if(timerEl){
+    if(game.status==='playing' && game.turnStartedAt){
+      var secs = Math.max(0, Math.floor((Date.now()-game.turnStartedAt)/1000));
+      timerEl.textContent = secs+'s';
+    } else {
+      timerEl.textContent = '';
+    }
+  }
+
+  if(game.status==='finished'){
+    document.getElementById('gameover-color').textContent = colorLabel(game, game.winner);
+    document.getElementById('gameover-color').style.color = COLORS[game.winner].hex;
+    var playAgainBtn = document.getElementById('btn-play-again');
+    if(App.mode==='online'){
+      playAgainBtn.textContent = App.online.isHost ? 'Rematch' : 'Waiting for host\u2026';
+    } else {
+      playAgainBtn.textContent = 'Play Again';
+    }
+    var finKey = game.winner + '@' + game.turnStartedAt;
+    if(!_historyRecordedKeys[finKey]){
+      _historyRecordedKeys[finKey] = true;
+      recordGameFinishedHistory(game);
+      if(App.mode==='local'){
+        recordGameWon_ifHuman(game);
+      } else if(App.mode==='online' && game.winner===App.online.myColor){
+        recordGameWon();
+      }
+    }
+    setTimeout(function(){ sfxWin(); vibrate([40,60,40,60,160]); show('screen-gameover'); launchConfetti(); }, 700);
+  } else {
+    maybeRunAITurn();
+    maybeRunOnlineAITurn();
+  }
+}
+
+var _historyRecordedKeys = {};
+function recordGameWon_ifHuman(game){
+  var isAIWinner = game.aiColors && game.aiColors.indexOf(game.winner)!==-1;
+  if(!isAIWinner) recordGameWon();
+}
+
+function recordGameFinishedHistory(game){
+  var modeLabel = (App.mode==='online' ? 'Online' : 'Local') + ' \u00b7 ' + game.colors.length + ' players';
+  recordHistoryEntry({
+    winnerColor: game.winner,
+    winnerName: colorLabel(game, game.winner),
+    modeLabel: modeLabel,
+    ts: Date.now()
+  });
+}
+
+/* ---------- AI turn scheduler (local mode only) ---------- */
+var aiTimer = null;
+function maybeRunAITurn(){
+  if(App.mode!=='local' || !App.game || App.game.status!=='playing') return;
+  var color = App.game.colors[App.game.turn];
+  if(!App.game.aiColors || App.game.aiColors.indexOf(color)===-1) return;
+  if(App.animating || aiTimer) return;
+  aiTimer = setTimeout(function(){
+    aiTimer = null;
+    if(!App.game || App.game.status!=='playing' || App.animating) return;
+    if(App.game.colors[App.game.turn]!==color) return; // stale, turn already moved on
+    if(!App.game.diceRolled){
+      handleRollClick();
+    } else {
+      var idx = chooseAIMove(App.game, color);
+      if(idx!==null && App.game.movable.indexOf(idx)!==-1) handleMovePiece(color, idx);
+    }
+  }, 650);
+}
+
+function renderLog(){
+  var el = document.getElementById('log-lines');
+  if(!App.game){ el.innerHTML=''; return; }
+  el.innerHTML = App.game.log.slice(0,30).map(function(line){
+    return '<div class="log-line">'+escapeHtml(line)+'</div>';
+  }).join('');
+}
+
+/* ======================================================================
+   LOCAL MODE SETUP
+   ====================================================================== */
+function renderLocalSetup(){
+  var chipsEl = document.getElementById('local-color-chips');
+  chipsEl.innerHTML='';
+  ALL_COLORS.forEach(function(color){
+    var chip = document.createElement('button');
+    chip.type='button';
+    chip.className = 'color-chip' + (App.local.selected.has(color) ? ' selected':'');
+    chip.innerHTML = '<span class="dot" style="background:'+COLORS[color].hex+'"></span>'+COLORS[color].label;
+    chip.addEventListener('click', function(){
+      if(App.local.selected.has(color)){
+        if(App.local.selected.size>2){ App.local.selected.delete(color); App.local.ai.delete(color); }
+        else toast('Need at least 2 players');
+      } else {
+        if(App.local.selected.size<4) App.local.selected.add(color);
+      }
+      saveLocalPrefs();
+      renderLocalSetup();
+    });
+    chipsEl.appendChild(chip);
+  });
+
+  var namesEl = document.getElementById('local-name-rows');
+  namesEl.innerHTML='';
+  ALL_COLORS.forEach(function(color){
+    if(!App.local.selected.has(color)) return;
+    var row = document.createElement('div');
+    row.className='player-row';
+    var dot = document.createElement('span');
+    dot.className='dot'; dot.style.background = COLORS[color].hex;
+    var input = document.createElement('input');
+    input.type='text'; input.maxLength=16;
+    input.placeholder = COLORS[color].label;
+    input.value = App.local.names[color] || '';
+    input.addEventListener('input', function(){ App.local.names[color] = input.value; saveLocalPrefs(); });
+    var aiBtn = document.createElement('button');
+    aiBtn.type='button';
+    aiBtn.className = 'ai-toggle' + (App.local.ai.has(color) ? ' on' : '');
+    aiBtn.textContent = App.local.ai.has(color) ? 'AI \u2713' : 'AI';
+    aiBtn.addEventListener('click', function(){
+      if(App.local.ai.has(color)) App.local.ai.delete(color);
+      else App.local.ai.add(color);
+      saveLocalPrefs();
+      renderLocalSetup();
+    });
+    row.appendChild(dot); row.appendChild(input); row.appendChild(aiBtn);
+    if(App.local.ai.has(color)){
+      var diffRow = document.createElement('div');
+      diffRow.className = 'diff-row';
+      ['easy','medium','hard'].forEach(function(level){
+        var pill = document.createElement('button');
+        pill.type='button';
+        var current = App.local.aiDifficulty[color] || 'hard';
+        pill.className = 'diff-pill' + (current===level ? ' selected':'');
+        pill.textContent = level==='easy' ? 'Easy' : (level==='medium' ? 'Medium' : 'Hard');
+        pill.addEventListener('click', function(){
+          App.local.aiDifficulty[color] = level;
+          saveLocalPrefs();
+          renderLocalSetup();
+        });
+        diffRow.appendChild(pill);
+      });
+      row.appendChild(diffRow);
+    }
+    namesEl.appendChild(row);
+  });
+
+  document.getElementById('toggle-rule-three-sixes').classList.toggle('on', App.local.rules.threeSixesForfeit!==false);
+  document.getElementById('toggle-rule-blockades').classList.toggle('on', App.local.rules.blockades!==false);
+}
+
+document.getElementById('btn-local').addEventListener('click', function(){
+  App.mode='local';
+  renderLocalSetup();
+  show('screen-local-setup');
+});
+
+document.getElementById('toggle-rule-three-sixes').addEventListener('click', function(){
+  App.local.rules.threeSixesForfeit = !(App.local.rules.threeSixesForfeit!==false);
+  saveLocalPrefs();
+  renderLocalSetup();
+});
+
+document.getElementById('toggle-rule-blockades').addEventListener('click', function(){
+  App.local.rules.blockades = !(App.local.rules.blockades!==false);
+  saveLocalPrefs();
+  renderLocalSetup();
+});
+
+document.getElementById('btn-local-start').addEventListener('click', function(){
+  var colors = ALL_COLORS.filter(function(c){ return App.local.selected.has(c); });
+  if(colors.length<2){ toast('Pick at least 2 players'); return; }
+  var names = {};
+  colors.forEach(function(c){ names[c] = (App.local.names[c]||'').trim() || COLORS[c].label; });
+  var aiColors = colors.filter(function(c){ return App.local.ai.has(c); });
+  saveLocalPrefs();
+  App.game = newGame(colors, names, aiColors, App.local.aiDifficulty, App.local.rules);
+  recordGameStarted();
+  document.getElementById('log-card').style.display='none';
+  renderGame();
+  show('screen-game');
+});
+
+/* ======================================================================
+   ONLINE MODE: storage helpers
+   ====================================================================== */
+// Firebase Realtime Database backs online rooms. Each room is stored as JSON at
+// /ludo_rooms/{code}.json — plain REST calls, no SDK or API key needed (assumes open
+// read/write rules; lock these down later if you want real auth).
+var FIREBASE_BASE = 'https://ludo-72e8c-default-rtdb.asia-southeast1.firebasedatabase.app';
+function roomUrl(code){ return FIREBASE_BASE + '/ludo_rooms/' + encodeURIComponent(code) + '.json'; }
+
+function storageAvailable(){ return typeof window.fetch === 'function'; }
+
+// Pings the database so the UI can tell the player the connection is live before
+// they try to create/join a room. Resolves true/false, never throws.
+// Note: this deliberately treats ANY real HTTP response (including a 401/403
+// permission-denied) as "reachable" — a permission error still proves the
+// database itself answered. Only a genuine network failure (offline, DNS,
+// CORS block) should count as unreachable. We also probe /ludo_rooms.json rather
+// than the database root, since rules scoped to /ludo_rooms/$code (as recommended)
+// don't grant read access on the root path.
+function waitForStorage(timeoutMs){
+  if(!storageAvailable()) return Promise.resolve(false);
+  return withTimeout(fetch(FIREBASE_BASE + '/ludo_rooms.json?shallow=true'), timeoutMs)
+    .then(function(res){ return !!res; })
+    .catch(function(){ return false; });
+}
+
+var STORAGE_TIMEOUT_MS = 9000;
+function withTimeout(promise, ms){
+  return new Promise(function(resolve, reject){
+    var done = false;
+    var timer = setTimeout(function(){
+      if(!done){ done = true; reject({ timeout:true }); }
+    }, ms);
+    Promise.resolve(promise).then(
+      function(v){ if(!done){ done = true; clearTimeout(timer); resolve(v); } },
+      function(e){ if(!done){ done = true; clearTimeout(timer); reject(e); } }
+    );
+  });
+}
+
+// Always resolves (never throws). Result: {room, unavailable, timedOut, forbidden}
+async function roomGet(code){
+  if(!storageAvailable()) return { room:null, unavailable:true, timedOut:false, forbidden:false };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code)), STORAGE_TIMEOUT_MS);
+    if(res.status===401 || res.status===403){
+      console.error('Ludo: roomGet permission denied — check your Firebase Realtime Database rules allow read on /ludo_rooms/'+code);
+      return { room:null, unavailable:false, timedOut:false, forbidden:true };
+    }
+    if(!res.ok) return { room:null, unavailable:true, timedOut:false, forbidden:false };
+    var data = await res.json();
+    return { room: data || null, unavailable:false, timedOut:false, forbidden:false };
+  }catch(e){
+    if(e && e.timeout){ console.error('Ludo: roomGet timed out'); return { room:null, unavailable:false, timedOut:true, forbidden:false }; }
+    console.error('Ludo: roomGet failed', e);
+    return { room:null, unavailable:false, timedOut:false, forbidden:false };
+  }
+}
+// Always resolves (never throws). Result: {ok, unavailable, timedOut, forbidden}
+// Uses PATCH so concurrent writes don't clobber each other — only the fields
+// explicitly included in `data` are updated; everything else is left untouched.
+// Host-only: permanently remove a room. Not currently wired to any UI
+// button (the lobby's "Close room" option was removed); left in place in
+// case it's needed again. Guests polling the lobby would see the room
+// disappear and get bounced home.
+async function roomDelete(code){
+  if(!storageAvailable()) return { ok:false, unavailable:true };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code), { method:'DELETE' }), STORAGE_TIMEOUT_MS);
+    return { ok: !!(res && res.ok), unavailable:false };
+  }catch(e){
+    return { ok:false, unavailable:false };
+  }
+}
+
+async function roomSet(code, data){
+  if(!storageAvailable()) return { ok:false, unavailable:true, timedOut:false, forbidden:false };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code), {
+      method:'PATCH',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(data)
+    }), STORAGE_TIMEOUT_MS);
+    if(res.status===401 || res.status===403){
+      console.error('Ludo: roomSet permission denied — check your Firebase Realtime Database rules allow write on /ludo_rooms/'+code);
+      return { ok:false, unavailable:false, timedOut:false, forbidden:true };
+    }
+    return { ok: !!(res && res.ok), unavailable:false, timedOut:false, forbidden:false };
+  }catch(e){
+    if(e && e.timeout){ console.error('Ludo: roomSet timed out'); return { ok:false, unavailable:false, timedOut:true, forbidden:false }; }
+    console.error('Ludo: roomSet failed', e);
+    return { ok:false, unavailable:false, timedOut:false, forbidden:false };
+  }
+}
+
+// Lightweight helper — writes only the status+game fields so the guest detects
+// game-start as fast as possible without touching seats or other metadata.
+async function roomSetStatus(code, status, game){
+  return roomSet(code, { status: status, game: game, updatedAt: Date.now() });
+}
+
+// Full overwrite — used when we want to guarantee the complete document is written
+async function roomPut(code, data){
+  if(!storageAvailable()) return { ok:false, unavailable:true, timedOut:false, forbidden:false };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code), {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(data)
+    }), STORAGE_TIMEOUT_MS);
+    if(res.status===401 || res.status===403) return { ok:false, unavailable:false, timedOut:false, forbidden:true };
+    return { ok: !!(res && res.ok), unavailable:false, timedOut:false, forbidden:false };
+  }catch(e){
+    if(e && e.timeout) return { ok:false, unavailable:false, timedOut:true, forbidden:false };
+    return { ok:false, unavailable:false, timedOut:false, forbidden:false };
+  }
+}
+
+function randCode(){
+  var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  var out='';
+  if(window.crypto && crypto.getRandomValues){
+    var buf = new Uint32Array(5);
+    crypto.getRandomValues(buf);
+    for(var i=0;i<5;i++) out += chars[buf[i] % chars.length];
+  } else {
+    for(var i=0;i<5;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  }
+  return out;
+}
+
+function stopPolling(){
+  if(App.online.pollHandle){ clearInterval(App.online.pollHandle); App.online.pollHandle=null; }
+}
+
+/* ======================================================================
+   ONLINE MODE: create room
+   ====================================================================== */
+var createState = { color:'red', seats:4, rules:{ threeSixesForfeit:true, blockades:true } };
+
+function renderCreateColorChips(){
+  var el = document.getElementById('create-color-chips');
+  el.innerHTML='';
+  ALL_COLORS.forEach(function(color){
+    var chip = document.createElement('button');
+    chip.type='button';
+    chip.className='color-chip' + (createState.color===color?' selected':'');
+    chip.innerHTML = '<span class="dot" style="background:'+COLORS[color].hex+'"></span>'+COLORS[color].label;
+    chip.addEventListener('click', function(){ createState.color=color; renderCreateColorChips(); });
+    el.appendChild(chip);
+  });
+}
+document.getElementById('create-seats-minus').addEventListener('click', function(){
+  if(createState.seats>2){ createState.seats--; document.getElementById('create-seats-count').textContent = createState.seats; }
+});
+document.getElementById('create-seats-plus').addEventListener('click', function(){
+  if(createState.seats<4){ createState.seats++; document.getElementById('create-seats-count').textContent = createState.seats; }
+});
+document.getElementById('toggle-create-rule-three-sixes').addEventListener('click', function(){
+  createState.rules.threeSixesForfeit = !(createState.rules.threeSixesForfeit!==false);
+  document.getElementById('toggle-create-rule-three-sixes').classList.toggle('on', createState.rules.threeSixesForfeit!==false);
+});
+document.getElementById('toggle-create-rule-blockades').addEventListener('click', function(){
+  createState.rules.blockades = !(createState.rules.blockades!==false);
+  document.getElementById('toggle-create-rule-blockades').classList.toggle('on', createState.rules.blockades!==false);
+});
+
+var onlineCheckFailCount = 0;
+
+document.getElementById('btn-online').addEventListener('click', function(){
+  show('screen-online-menu');
+  checkOnlineAvailability();
+});
+
+function checkOnlineAvailability(){
+  var banner = document.getElementById('online-status-banner');
+
+  var showCheckingTimer = setTimeout(function(){
+    banner.style.display='flex';
+    banner.className = 'status-banner checking';
+    banner.textContent = 'Checking online play availability\u2026';
+  }, 350);
+  waitForStorage(3500).then(function(available){
+    clearTimeout(showCheckingTimer);
+    if(available){
+      banner.style.display='none';
+      onlineCheckFailCount = 0;
+      return;
+    }
+    onlineCheckFailCount++;
+    banner.style.display='flex';
+    banner.className = 'status-banner warn';
+    if(onlineCheckFailCount>=2){
+      banner.innerHTML = "Still can't reach the online server. Check your internet connection, or the database may be unreachable right now. <span class=\"retry-link\" id=\"online-retry-link\">Check again</span>";
+    } else {
+      banner.innerHTML = "Online play isn't responding right now \u2014 this sometimes clears up after a few seconds. <span class=\"retry-link\" id=\"online-retry-link\">Check again</span>";
+    }
+    var retryLink = document.getElementById('online-retry-link');
+    if(retryLink) retryLink.addEventListener('click', checkOnlineAvailability);
+  });
+}
+document.getElementById('btn-create-room').addEventListener('click', function(){
+  renderCreateColorChips();
+  document.getElementById('create-seats-count').textContent = createState.seats;
+  document.getElementById('toggle-create-rule-three-sixes').classList.toggle('on', createState.rules.threeSixesForfeit!==false);
+  document.getElementById('toggle-create-rule-blockades').classList.toggle('on', createState.rules.blockades!==false);
+  show('screen-create');
+});
+document.getElementById('btn-join-room').addEventListener('click', function(){ show('screen-join'); });
+
+document.getElementById('btn-create-confirm').addEventListener('click', async function(){
+  var btn = document.getElementById('btn-create-confirm');
+  btn.disabled = true; btn.textContent='Connecting\u2026';
+  var available = await waitForStorage(4000);
+  if(!available){
+    btn.disabled = false; btn.textContent='Create Room';
+    toast("Online play isn't available right now \u2014 try again in a moment");
+    return;
+  }
+  btn.textContent='Creating\u2026';
+  var name = (document.getElementById('create-name').value||'').trim() || COLORS[createState.color].label;
+  var code = randCode();
+  var room = {
+    code: code,
+    hostClientId: App.online.myClientId,
+    maxPlayers: createState.seats,
+    seats: [{ color: createState.color, clientId: App.online.myClientId, name: name }],
+    status: 'lobby',
+    game: null,
+    rules: { threeSixesForfeit: createState.rules.threeSixesForfeit!==false, blockades: createState.rules.blockades!==false },
+    version: 1,
+    updatedAt: Date.now()
+  };
+  roomPut(code, room).then(function(res){
+    btn.disabled=false; btn.textContent='Create Room';
+    if(!res.ok){
+      if(res.timedOut) toast('Connection is slow right now \u2014 please try again');
+      else if(res.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
+      else toast('Could not create room \u2014 try again');
+      return;
+    }
+    App.mode='online';
+    App.online.roomCode = code;
+    App.online.myColor = createState.color;
+    App.online.myName = name;
+    App.online.isHost = true;
+    App.online.isSpectator = false;
+    App.online.lastReactionTs = Date.now();
+    saveOnlineSession();
+    enterLobby();
+  }).catch(function(e){
+    console.error('Ludo: create room error', e);
+    btn.disabled=false; btn.textContent='Create Room';
+    toast('Could not create room \u2014 try again');
+  });
+});
+
+/* ======================================================================
+   ONLINE MODE: join room
+   ====================================================================== */
+var joinState = { code:null, color:null, room:null };
+
+document.getElementById('join-code').addEventListener('input', function(e){
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+});
+
+document.getElementById('btn-join-check').addEventListener('click', async function(){
+  var code = document.getElementById('join-code').value.trim();
+  var statusEl = document.getElementById('join-status');
+  if(code.length<5){ statusEl.textContent='Enter the 5-character room code.'; return; }
+  var checkBtn = document.getElementById('btn-join-check');
+  checkBtn.disabled = true;
+  statusEl.textContent = 'Connecting\u2026';
+  var available = await waitForStorage(4000);
+  if(!available){
+    checkBtn.disabled = false;
+    statusEl.textContent = "Online play isn't available right now \u2014 try again in a moment.";
+    return;
+  }
+  statusEl.textContent = 'Looking for room\u2026';
+  document.getElementById('join-color-section').style.display='none';
+  document.getElementById('btn-join-confirm').style.display='none';
+  document.getElementById('btn-spectate-confirm').style.display='none';
+  roomGet(code).then(function(res){
+    checkBtn.disabled = false;
+    if(res.timedOut){ statusEl.textContent = 'Connection is slow right now \u2014 check your internet and try again.'; return; }
+    if(res.forbidden){ statusEl.textContent = 'Database rejected the lookup \u2014 check your Firebase rules allow read access to /ludo_rooms.'; return; }
+    var room = res.room;
+    if(!room){ statusEl.textContent = 'No room found with that code.'; return; }
+    joinState.code = code; joinState.room = room;
+    var taken = new Set(room.seats.map(function(s){ return s.color; }));
+    var free = ALL_COLORS.filter(function(c){ return !taken.has(c); });
+    var canJoinAsPlayer = room.status==='lobby' && room.seats.length<room.maxPlayers && free.length>0;
+    // A room that's found at all can always be watched, whether it's full,
+    // already playing, or already finished — spectating never needs a seat.
+    document.getElementById('btn-spectate-confirm').style.display='flex';
+    if(canJoinAsPlayer){
+      joinState.color = free[0];
+      statusEl.textContent = (room.seats.length)+' of '+room.maxPlayers+' seats taken. Pick a color and join in, or just watch.';
+      renderJoinColorChips(free);
+      document.getElementById('join-color-section').style.display='block';
+      document.getElementById('btn-join-confirm').style.display='flex';
+    } else if(room.status==='lobby'){
+      statusEl.textContent = 'That room is full \u2014 you can still watch.';
+    } else if(room.status==='playing'){
+      statusEl.textContent = 'That game is already in progress \u2014 you can still watch.';
+    } else {
+      statusEl.textContent = 'That game has finished \u2014 you can still watch.';
+    }
+  }).catch(function(e){
+    checkBtn.disabled = false;
+    console.error('Ludo: join check error', e);
+    statusEl.textContent = 'Something went wrong looking up that room \u2014 try again.';
+  });
+});
+
+document.getElementById('btn-spectate-confirm').addEventListener('click', function(){
+  if(!joinState.code) return;
+  var name = (document.getElementById('join-name').value||'').trim() || 'Spectator';
+  App.mode='online';
+  App.online.roomCode = joinState.code;
+  App.online.myColor = null;
+  App.online.myName = name;
+  App.online.isHost = false;
+  App.online.isSpectator = true;
+  App.online.lastReactionTs = Date.now();
+  enterSpectate();
+});
+
+function renderJoinColorChips(freeColors){
+  var el = document.getElementById('join-color-chips');
+  el.innerHTML='';
+  freeColors.forEach(function(color){
+    var chip = document.createElement('button');
+    chip.type='button';
+    chip.className='color-chip' + (joinState.color===color?' selected':'');
+    chip.innerHTML = '<span class="dot" style="background:'+COLORS[color].hex+'"></span>'+COLORS[color].label;
+    chip.addEventListener('click', function(){ joinState.color=color; renderJoinColorChips(freeColors); });
+    el.appendChild(chip);
+  });
+}
+
+document.getElementById('btn-join-confirm').addEventListener('click', async function(){
+  var btn = document.getElementById('btn-join-confirm');
+  btn.disabled=true; btn.textContent='Joining\u2026';
+  var available = await waitForStorage(4000);
+  if(!available){
+    btn.disabled=false; btn.textContent='Join Room';
+    toast("Online play isn't available right now \u2014 try again in a moment");
+    return;
+  }
+  var name = (document.getElementById('join-name').value||'').trim() || COLORS[joinState.color].label;
+  roomGet(joinState.code).then(function(res){
+    if(res.timedOut){ btn.disabled=false; btn.textContent='Join Room'; toast('Connection is slow right now \u2014 try again'); return; }
+    var room = res.room;
+    if(!room){ btn.disabled=false; btn.textContent='Join Room'; toast('Room no longer exists'); return; }
+    if(room.status!=='lobby'){ btn.disabled=false; btn.textContent='Join Room'; toast('That game already started'); return; }
+    var taken = new Set(room.seats.map(function(s){ return s.color; }));
+    if(taken.has(joinState.color)){ btn.disabled=false; btn.textContent='Join Room'; toast('That color was just taken \u2014 pick another'); document.getElementById('btn-join-check').click(); return; }
+    if(room.seats.length>=room.maxPlayers){ btn.disabled=false; btn.textContent='Join Room'; toast('Room just filled up'); return; }
+    room.seats.push({ color: joinState.color, clientId: App.online.myClientId, name: name });
+    // PATCH only the seats array — avoids overwriting status/game fields the host may have set
+    roomSet(joinState.code, { seats: room.seats, updatedAt: Date.now() }).then(function(setRes){
+      btn.disabled=false; btn.textContent='Join Room';
+      if(!setRes.ok){
+        if(setRes.timedOut) toast('Connection is slow right now \u2014 try again');
+        else if(setRes.forbidden) toast('Database rejected the write \u2014 check your Firebase rules allow access to /ludo_rooms');
+        else toast('Could not join \u2014 try again');
+        return;
+      }
+      App.mode='online';
+      App.online.roomCode = joinState.code;
+      App.online.myColor = joinState.color;
+      App.online.myName = name;
+      App.online.isHost = false;
+      App.online.isSpectator = false;
+      App.online.lastReactionTs = Date.now();
+      saveOnlineSession();
+      enterLobby();
+    });
+  }).catch(function(e){
+    console.error('Ludo: join confirm error', e);
+    btn.disabled=false; btn.textContent='Join Room';
+    toast('Could not join \u2014 try again');
+  });
+});
+
+/* ======================================================================
+   ONLINE MODE: lobby  — hard-fixed
+   Approach: pure polling at 500 ms with no SSE complexity.
+   The loop is self-healing: it tracks whether a poll is already in-flight
+   so concurrent fetches never pile up, restarts itself if the interval
+   is ever cleared, and re-fires immediately when the tab becomes visible
+   again (handles phone-lock / app-switch).
+   ====================================================================== */
+var _lobbyPollTimer  = null;
+var _lobbyPollActive = false;   // true while a fetch is in-flight
+
+function _stopLobbyLoop(){
+  if(_lobbyPollTimer){ clearInterval(_lobbyPollTimer); _lobbyPollTimer = null; }
+  _lobbyPollActive = false;
+}
+
+// keep old names so nothing else breaks
+function stopLobbySSE(){ /* no-op — SSE removed */ }
+
+
+function sanitizeGame(game){
+  if(!game) return game;
+  if(!Array.isArray(game.log)) game.log = [];
+  if(!Array.isArray(game.pieces)) game.pieces = [];
+  if(!Array.isArray(game.colors)) game.colors = [];
+  if(!Array.isArray(game.movable)) game.movable = [];
+  if(typeof game.names !== 'object' || game.names === null) game.names = {};
+  if(typeof game.turn !== 'number') game.turn = 0;
+  if(typeof game.status !== 'string') game.status = 'playing';
+  if(typeof game.afkSkips !== 'object' || game.afkSkips === null) game.afkSkips = {};
+  if(typeof game.rules !== 'object' || game.rules === null) game.rules = { threeSixesForfeit:true, blockades:true };
+  return game;
+}
+
+function enterLobby(){
+  document.getElementById('lobby-code').textContent = App.online.roomCode;
+  App.online.chatMessages = [];
+  App.online.chatUnread = 0;
+  App.online._chatSynced = false;
+  App.online.chatLastTs = 0;
+  show('screen-lobby');
+  _stopLobbyLoop();
+  stopPolling();
+  _runLobbyPoll();                                      // fire immediately
+  _lobbyPollTimer = setInterval(_runLobbyPoll, 800);   // then every 800 ms
+}
+
+// Spectators never take a seat, so they skip the join-write entirely — just
+// point the same polling machinery at the room. If the game is already
+// underway (or even finished) they drop straight into the board read-only;
+// if it's still in the lobby, they watch it fill up like anyone else.
+function enterSpectate(){
+  App.online.chatMessages = [];
+  App.online.chatUnread = 0;
+  App.online._chatSynced = false;
+  App.online.chatLastTs = 0;
+  _stopLobbyLoop();
+  stopPolling();
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable){ toast('Connection is slow right now \u2014 try again'); show('screen-home'); return; }
+    var room = res.room;
+    if(!room){ toast('Room no longer exists'); show('screen-home'); return; }
+    if(room.game && (room.status==='playing' || room.status==='finished')){
+      App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
+    } else {
+      enterLobby();
+    }
+  }).catch(function(){
+    toast('Could not reach room \u2014 try again');
+    show('screen-home');
+  });
+}
+
+// Re-poll the instant the page becomes visible (tab switch, phone unlock, etc.)
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible' && _lobbyPollTimer){
+    _runLobbyPoll();
+  }
+});
+
+function _dbg(msg){
+  var el = document.getElementById('lobby-debug');
+  if(!el) return;
+  var t = new Date().toISOString().substr(11,8);
+  el.innerHTML = '<div>' + t + ' ' + msg + '</div>' + el.innerHTML;
+}
+
+function _runLobbyPoll(){
+  if(_lobbyPollActive) return;
+  if(!App.online.roomCode){ _dbg('no roomCode, skipping'); return; }
+  _lobbyPollActive = true;
+  _dbg('fetching room ' + App.online.roomCode + '...');
+  roomGet(App.online.roomCode).then(function(res){
+    _lobbyPollActive = false;
+    if(res.timedOut){ _dbg('TIMED OUT'); return; }
+    if(res.unavailable){ _dbg('UNAVAILABLE'); return; }
+    if(res.forbidden){ _dbg('FORBIDDEN - check Firebase rules'); return; }
+    var room = res.room;
+    if(!room){ _dbg('room is null/missing'); _stopLobbyLoop(); clearOnlineSession(); toast('Room closed'); show('screen-home'); return; }
+    _dbg('status=' + room.status + ' seats=' + (room.seats ? room.seats.length : '?') + ' game=' + (room.game ? 'yes' : 'no'));
+    var gameStarted = room.status === 'playing'
+      || room.status === 'finished'
+      || (room.game && room.game.status === 'playing')
+      || (room.game && room.game.status === 'finished')
+      || (room.game && Array.isArray(room.game.colors) && room.game.colors.length >= 2);
+    if(gameStarted && room.game){
+      _dbg('STARTING GAME NOW status=' + room.status);
+      _stopLobbyLoop();
+      App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
+      if(App.online.myColor && room.game.colors.indexOf(App.online.myColor) === -1){
+        App.online.myColor = room.game.colors[0];
+      }
+      document.getElementById('log-card').style.display = 'none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
+      return;
+    }
+    renderLobbySeats(room);
+  }).catch(function(e){
+    _lobbyPollActive = false;
+    _dbg('FETCH ERROR: ' + (e && e.message ? e.message : String(e)));
+  });
+}
+
+// Legacy alias — keep callers happy
+function pollLobbyOnce(){ _runLobbyPoll(); }
+
+function renderLobbySeats(room){
+  var el = document.getElementById('lobby-seats');
+  el.innerHTML='';
+  for(var i=0;i<room.maxPlayers;i++){
+    var seat = room.seats[i];
+    var div = document.createElement('div');
+    if(seat){
+      div.className='seat';
+      var mine = seat.clientId===App.online.myClientId;
+      div.innerHTML = '<span class="dot" style="background:'+COLORS[seat.color].hex+'"></span>'+
+        '<span class="nm">'+escapeHtml(seat.name)+'</span>' + (mine?'<span class="you">YOU</span>':'');
+      if(App.online.isHost && !mine){
+        var rm = document.createElement('button');
+        rm.type='button'; rm.className='seat-remove'; rm.textContent='\u2715';
+        rm.title = 'Remove ' + seat.name;
+        rm.setAttribute('aria-label', 'Remove ' + seat.name + ' from the room');
+        rm.addEventListener('click', function(seatColor){ return function(){ removeSeat(room.code, seatColor); }; }(seat.color));
+        div.appendChild(rm);
+      }
+    } else {
+      div.className='seat empty';
+      div.innerHTML = '<span class="dot" style="background:rgba(255,255,255,.15)"></span><span class="nm">Open seat</span>';
+    }
+    el.appendChild(div);
+  }
+  var rulesNote = document.getElementById('lobby-rules-note');
+  if(rulesNote){
+    var threeSixesOn = !room.rules || room.rules.threeSixesForfeit !== false;
+    var blockadesOn = !room.rules || room.rules.blockades !== false;
+    rulesNote.textContent = 'House rules: three 6s in a row ' + (threeSixesOn ? 'forfeits the turn' : 'is allowed \u2014 keep rolling') +
+      '; blockades are ' + (blockadesOn ? 'on.' : 'off.');
+  }
+  var hostArea = document.getElementById('lobby-host-area');
+  var guestArea = document.getElementById('lobby-guest-area');
+  if(App.online.isHost){
+    guestArea.style.display='none';
+    hostArea.style.display='block';
+    var canStart = room.seats.length>=2;
+    hostArea.innerHTML = '';
+    var btn = document.createElement('button');
+    btn.className='btn btn-primary btn-block';
+    btn.textContent = canStart ? 'Start Game' : 'Need at least 2 players';
+    btn.disabled = !canStart;
+    btn.addEventListener('click', function(){ startOnlineGame(room); });
+    hostArea.appendChild(btn);
+  } else {
+    hostArea.style.display='none';
+    guestArea.style.display='flex';
+    var guestMsg = guestArea.querySelector('.waiting-pulse');
+    if(guestMsg && guestMsg.nextSibling){
+      guestMsg.nextSibling.textContent = App.online.isSpectator
+        ? "Watching \u2014 the game will start once the host begins\u2026"
+        : 'Waiting for the host to start the game\u2026';
+    }
+  }
+}
+
+// Host-only: free up a seat that a player left stuck (e.g. they closed the
+// tab without leaving cleanly). Fetches the freshest seat list first so we
+// don't clobber a seat someone else just took.
+function removeSeat(code, color){
+  roomGet(code).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){ toast('Cannot reach server \u2014 try again'); return; }
+    var room = res.room;
+    var newSeats = (room.seats||[]).filter(function(s){ return s.color!==color; });
+    roomSet(code, { seats:newSeats, updatedAt: Date.now() }).then(function(setRes){
+      if(!setRes || !setRes.ok){ toast('Could not remove player \u2014 try again'); return; }
+      toast(COLORS[color].label + ' seat freed up');
+      _runLobbyPoll();
+    });
+  });
+}
+
+
+
+function startOnlineGame(roomSnapshot){
+  var startBtn = document.querySelector('#lobby-host-area .btn');
+  if(startBtn){ startBtn.disabled=true; startBtn.textContent='Starting…'; }
+
+  // Fetch fresh room so we have latest seats
+  roomGet(roomSnapshot.code).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){
+      if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+      var reason = res.timedOut ? 'timed out' : res.forbidden ? 'forbidden - check Firebase rules' : 'no room data';
+      toast('Cannot reach server: ' + reason);
+      return;
+    }
+    var room = res.room;
+    if(room.status !== 'lobby'){
+      // Already started somehow
+      _stopLobbyLoop(); stopPolling();
+      App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
+      document.getElementById('log-card').style.display='none';
+      renderGame(); show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
+      return;
+    }
+    var colors = room.seats.map(function(s){ return s.color; });
+    var names = {};
+    room.seats.forEach(function(s){ names[s.color] = s.name; });
+    var game = newGame(colors, names, undefined, undefined, room.rules);
+
+    // Write full room object with PUT — most reliable, no ambiguity
+    var fullRoom = {
+      code: room.code,
+      hostClientId: room.hostClientId,
+      maxPlayers: room.maxPlayers,
+      seats: room.seats,
+      status: 'playing',
+      game: game,
+      version: (room.version||0) + 1,
+      updatedAt: Date.now()
+    };
+    roomPut(room.code, fullRoom).then(function(setRes){
+      if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+      if(!setRes.ok){
+        var reason = setRes.timedOut ? 'connection slow - try again' : setRes.forbidden ? 'FORBIDDEN: go to Firebase console > Realtime Database > Rules and set read+write to true' : 'write failed - try again';
+        toast(reason);
+        return;
+      }
+      _stopLobbyLoop(); stopPolling();
+      App.game = game;
+      App.online.version = fullRoom.version;
+      document.getElementById('log-card').style.display='none';
+      renderGame(); show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
+    }).catch(function(e){
+      if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+      toast('Write error: ' + (e && e.message ? e.message : String(e)));
+    });
+  }).catch(function(e){
+    if(startBtn){ startBtn.disabled=false; startBtn.textContent='Start Game'; }
+    toast('Network error: ' + (e && e.message ? e.message : String(e)));
+  });
+}
+
+function escapeHtml(s){
+  var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+document.getElementById('btn-copy-code').addEventListener('click', function(){
+  // handleDeepLinkJoin() already knows how to read ?room=CODE straight into
+  // the join screen with the code prefilled — include that link so tapping
+  // it (not just reading the code off it) gets a friend most of the way in.
+  var joinUrl = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(App.online.roomCode);
+  var msg = 'Join my Ludo game! Open this link, or open the app and enter code ' + App.online.roomCode + ':\n' + joinUrl;
+  if(navigator.share){
+    navigator.share({ text: msg, url: joinUrl }).catch(function(){ /* user cancelled share sheet — no error needed */ });
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(msg).then(function(){ toast('Invite link copied'); }).catch(function(){ toast(App.online.roomCode); });
+  } else {
+    toast('Room code: ' + App.online.roomCode);
+  }
+});
+
+document.getElementById('lobby-back').addEventListener('click', function(){
+  history.back();
+});
+
+/* ======================================================================
+   ONLINE MODE: in-game sync
+   ====================================================================== */
+var onlineWriting = false;
+
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden && App.mode==='online' && App.online.roomCode){
+    pollGameOnce();
+  }
+});
+
+/* ---------- AFK handling ----------
+   A stalled online turn (tab closed, phone locked, player just wandered off)
+   would otherwise freeze the game for everyone else forever. The host
+   auto-skips a turn that's sat idle past AFK_SKIP_MS; any other seated
+   player can force the same skip after the longer AFK_FALLBACK_MS, which
+   covers the case where the host itself is the one who's gone. Two
+   consecutive skips for the same color hand their pieces to the computer
+   (reusing the existing AI engine) so the game can keep moving without
+   that player. Rolling again at any point resets their skip count. */
+function maybeAutoSkipAFKTurn(){
+  if(App.mode!=='online' || !App.game || App.game.status!=='playing') return false;
+  if(onlineWriting || App.animating) return false;
+  var game = App.game;
+  var color = game.colors[game.turn];
+  if(color === App.online.myColor) return false; // never act on our own turn
+  if(game.aiColors && game.aiColors.indexOf(color)!==-1) return false; // already AI, nothing to skip
+  if(!game.turnStartedAt) return false;
+  var elapsed = Date.now() - game.turnStartedAt;
+  if(App.online.isHost && elapsed >= AFK_SKIP_MS){
+    performAFKSkip(color);
+    return true;
+  }
+  if(!App.online.isHost && elapsed >= AFK_FALLBACK_MS){
+    performAFKSkip(color);
+    return true;
+  }
+  return false;
+}
+function performAFKSkip(color){
+  if(App.mode!=='online' || onlineWriting) return;
+  var game = App.game;
+  if(!game || game.status!=='playing') return;
+  if(game.colors[game.turn] !== color) return; // stale — turn already moved on
+  game.afkSkips = game.afkSkips || {};
+  var count = (game.afkSkips[color]||0) + 1;
+  var nm = colorLabel(game, color);
+  var handedToAI = count >= 2;
+  if(handedToAI){
+    game.aiColors = (game.aiColors||[]).slice();
+    if(game.aiColors.indexOf(color)===-1) game.aiColors.push(color);
+    game.aiDifficulty = Object.assign({}, game.aiDifficulty);
+    if(!game.aiDifficulty[color]) game.aiDifficulty[color] = 'easy';
+    game.afkSkips[color] = 0;
+    game.log.unshift(nm + ' was away too long \u2014 the computer is now playing their pieces.');
+  } else {
+    game.afkSkips[color] = count;
+    game.log.unshift(nm + ' was away too long \u2014 turn skipped.');
+  }
+  endTurn(game);
+  renderGame();
+  syncPushGame();
+}
+
+// Host-only: runs the AI heuristic for any color that's been handed to the
+// computer (whether picked as an AI seat at setup, or handed over mid-game
+// by performAFKSkip). maybeRunAITurn() only fires in local mode, so this is
+// the online equivalent — it drives the engine directly and pushes the
+// result, since the acting client's own color isn't the AI's color and so
+// wouldn't pass the normal canActNow() gate.
+var onlineAiTimer = null;
+function maybeRunOnlineAITurn(){
+  if(App.mode!=='online' || !App.online.isHost || !App.game || App.game.status!=='playing') return;
+  var color = App.game.colors[App.game.turn];
+  if(!App.game.aiColors || App.game.aiColors.indexOf(color)===-1) return;
+  if(App.animating || onlineWriting || onlineAiTimer) return;
+  onlineAiTimer = setTimeout(function(){
+    onlineAiTimer = null;
+    if(!App.game || App.game.status!=='playing' || App.animating || onlineWriting) return;
+    if(App.game.colors[App.game.turn]!==color) return; // stale, turn already moved on
+    if(!App.game.diceRolled){
+      engineRoll(App.game);
+    } else {
+      var idx = chooseAIMove(App.game, color);
+      if(idx!==null && App.game.movable.indexOf(idx)!==-1){
+        engineMove(App.game, idx);
+        if(App.game.log[0] && App.game.log[0].indexOf('captured')!==-1){ sfxCapture(); vibrate([25,35,25]); }
+      }
+    }
+    renderGame();
+    syncPushGame();
+  }, 700);
+}
+
+// In-game connection banner: a lobby/menu-level connectivity check already
+// exists (checkOnlineAvailability), but once a game is underway a dropped
+// connection was previously invisible — pollGameOnce just silently retried.
+// Surface it after a couple of consecutive failures (so a single missed
+// beat doesn't flash the banner), and clear it the moment a poll succeeds.
+var GAME_CONN_FAIL_THRESHOLD = 2;
+var gameConnFailCount = 0;
+function setGameConnBanner(visible){
+  var el = document.getElementById('game-connection-banner');
+  if(el) el.style.display = visible ? 'flex' : 'none';
+}
+
+function pollGameOnce(){
+  if(onlineWriting || App.animating) return;
+  if(App.screen!=='screen-game' && App.screen!=='screen-gameover') return;
+  if(maybeAutoSkipAFKTurn()) return; // just wrote a skip — next tick will pick up the fresh state
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable){
+      gameConnFailCount++;
+      if(gameConnFailCount>=GAME_CONN_FAIL_THRESHOLD) setGameConnBanner(true);
+      return; // transient — try again next tick
+    }
+    gameConnFailCount = 0;
+    setGameConnBanner(false);
+    var room = res.room;
+    if(!room) return;
+    handleIncomingReaction(room);
+    handleIncomingChat(room);
+    if(!room.game) return;
+    if(onlineWriting || App.animating) return;
+    var incomingVersion = room.version || 0;
+    if(incomingVersion === App.online.version) return; // nothing changed — don't tear down/rebuild pieces for no reason
+    App.online.version = incomingVersion;
+    var prev = App.game;
+    var incoming = sanitizeGame(room.game);
+    var isRematch = incoming.status==='playing' && prev && prev.status==='finished';
+    if(isRematch){
+      App.game = incoming;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      return;
+    }
+    var animated = tryAnimateIncomingMove(prev, incoming);
+    if(!animated){
+      App.game = incoming;
+      if(App.screen==='screen-game') renderGame();
+    }
+  });
+}
+
+// Emoji reactions ride on a separate `reaction` field on the room so they
+// never touch the game/version — sending one can't clash with a move.
+// Seated players are identified by color, same as everywhere else in the
+// room state. Spectators have no color, so they're identified by their
+// stable per-device client id instead — this keeps "is this my own
+// message/reaction" comparisons correct even with several spectators
+// watching the same room at once (all of whom would otherwise share the
+// same null color and get attributed to each other).
+function myChatIdentity(){
+  return App.online.myColor || ('spectator:' + App.online.myClientId);
+}
+
+function handleIncomingReaction(room){
+  if(!room.reaction || !room.reaction.ts) return;
+  if(room.reaction.ts <= App.online.lastReactionTs) return;
+  App.online.lastReactionTs = room.reaction.ts;
+  if(room.reaction.from === myChatIdentity()) return; // don't re-show our own
+  showReactionBubble(room.reaction.emoji);
+}
+
+var REACTION_EMOJIS = ['\ud83d\udc4f','\ud83d\ude05','\ud83d\udd25','\ud83d\ude2e','\ud83c\udf89'];
+function renderReactionRow(){
+  var row = document.getElementById('reaction-row');
+  if(!row) return;
+  if(App.mode!=='online' || !App.game || App.game.status!=='playing'){ row.style.display='none'; return; }
+  row.style.display='flex';
+  if(row.dataset.built) return;
+  row.dataset.built='1';
+  REACTION_EMOJIS.forEach(function(emoji){
+    var btn = document.createElement('button');
+    btn.type='button'; btn.className='reaction-btn'; btn.textContent=emoji;
+    btn.addEventListener('click', function(){ sendReaction(emoji); });
+    row.appendChild(btn);
+  });
+}
+function sendReaction(emoji){
+  if(App.mode!=='online' || !App.online.roomCode) return;
+  vibrate(10);
+  showReactionBubble(emoji);
+  roomSet(App.online.roomCode, { reaction: { emoji: emoji, from: myChatIdentity(), ts: Date.now() } });
+}
+function showReactionBubble(emoji){
+  var el = document.createElement('div');
+  el.className='reaction-bubble';
+  el.textContent = emoji;
+  document.body.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 1900);
+}
+
+// ---------- Text chat ----------
+// Chat rides on its own `chat` field (a capped list of messages), separate
+// from `game`/`version`, so sending a message can never clash with a move
+// the way editing `game` directly would. Sends are a read-modify-write
+// (roomGet the latest list, append, roomSet it back) — under a rare
+// simultaneous send from two players the loser's message can be dropped,
+// same trade-off the rest of this app already accepts for room writes.
+var CHAT_HISTORY_LIMIT = 40;
+var chatSending = false;
+function renderChatToggle(){
+  var btn = document.getElementById('btn-chat-toggle');
+  if(!btn) return;
+  btn.style.display = (App.mode==='online' && App.game && App.game.status==='playing') ? 'flex' : 'none';
+  updateChatBadge();
+}
+function handleIncomingChat(room){
+  var incoming = (room.chat && Array.isArray(room.chat.messages)) ? room.chat.messages : [];
+  if(!incoming.length) return;
+  var lastIncoming = incoming[incoming.length-1];
+  if(!lastIncoming || lastIncoming.ts <= App.online.chatLastTs) return; // nothing new
+  var isFirstSync = !App.online._chatSynced;
+  var previousLastTs = App.online.chatLastTs;
+  App.online._chatSynced = true;
+  App.online.chatLastTs = lastIncoming.ts;
+  App.online.chatMessages = incoming.slice(-CHAT_HISTORY_LIMIT);
+  if(App.online.chatOpen){
+    renderChatMessages();
+  } else if(!isFirstSync){
+    var myId = myChatIdentity();
+    var newFromOthers = incoming.filter(function(m){ return m.ts > previousLastTs && m.from !== myId; }).length;
+    if(newFromOthers>0){
+      App.online.chatUnread += newFromOthers;
+      updateChatBadge();
+      vibrate(8);
+    }
+  }
+}
+function updateChatBadge(){
+  var badge = document.getElementById('chat-badge');
+  if(!badge) return;
+  if(App.online.chatUnread>0){
+    badge.textContent = App.online.chatUnread>9 ? '9+' : String(App.online.chatUnread);
+    badge.style.display='flex';
+  } else {
+    badge.style.display='none';
+  }
+}
+function renderChatMessages(){
+  var wrap = document.getElementById('chat-messages');
+  if(!wrap) return;
+  var msgs = App.online.chatMessages;
+  if(!msgs.length){
+    wrap.innerHTML = '<div class="chat-empty">No messages yet &mdash; say hi!</div>';
+    return;
+  }
+  var myId = myChatIdentity();
+  wrap.innerHTML = msgs.map(function(m){
+    var own = m.from === myId;
+    var dotColor = (COLORS[m.from] && COLORS[m.from].hex) || 'var(--cream-dim)';
+    return '<div class="chat-msg '+(own?'own':'other')+'">' +
+      (own ? '' : '<span class="who" style="color:'+dotColor+'">'+escapeHtml(m.name||colorLabelForChat(m.from))+'</span>') +
+      escapeHtml(m.text) + '</div>';
+  }).join('');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+function colorLabelForChat(fromKey){
+  if(App.game && COLORS[fromKey]) return colorLabel(App.game, fromKey);
+  if(COLORS[fromKey]) return COLORS[fromKey].label;
+  return 'Spectator';
+}
+function openChatPanel(){
+  if(App.mode!=='online') return;
+  App.online.chatOpen = true;
+  App.online.chatUnread = 0;
+  updateChatBadge();
+  document.getElementById('chat-overlay').style.display='flex';
+  renderChatMessages();
+  setTimeout(function(){ document.getElementById('chat-input').focus(); }, 50);
+}
+function closeChatPanel(){
+  App.online.chatOpen = false;
+  document.getElementById('chat-overlay').style.display='none';
+}
+function sendChatMessage(text){
+  text = (text||'').trim();
+  if(!text || App.mode!=='online' || !App.online.roomCode || chatSending) return;
+  text = text.slice(0, 200);
+  chatSending = true;
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){ chatSending=false; toast('Message not sent \u2014 try again'); return; }
+    var existing = (res.room.chat && Array.isArray(res.room.chat.messages)) ? res.room.chat.messages : [];
+    var msg = { from: myChatIdentity(), name: App.online.myName, text: text, ts: Date.now() };
+    var updated = existing.concat([msg]).slice(-CHAT_HISTORY_LIMIT);
+    roomSet(App.online.roomCode, { chat: { messages: updated } }).then(function(setRes){
+      chatSending = false;
+      if(!setRes || !setRes.ok){ toast('Message not sent \u2014 try again'); return; }
+      App.online.chatMessages = updated;
+      App.online.chatLastTs = msg.ts;
+      App.online._chatSynced = true;
+      renderChatMessages();
+    });
+  }).catch(function(){ chatSending=false; toast('Message not sent \u2014 try again'); });
+}
+
+// If the incoming synced state shows a single piece advanced from where we last saw it
+// (i.e. an opponent just moved), hop it into place the same way local moves animate.
+// Anything unexpected (first sync, big jump, mismatch) just falls back to a plain snap.
+function tryAnimateIncomingMove(prev, incoming){
+  try{
+    if(!prev || !incoming.lastMove) return false;
+    var mv = incoming.lastMove;
+    var prevPiece = findPiece(prev, mv.color, mv.idx);
+    var newPiece2 = findPiece(incoming, mv.color, mv.idx);
+    if(!prevPiece || !newPiece2) return false;
+    var oldP = prevPiece.p, newP2 = newPiece2.p;
+    // If piece hasn't actually moved, nothing to animate
+    if(oldP===newP2) return false;
+    if(!(oldP===-1 || (newP2>oldP && newP2<=57))) return false;
+    var steps = getStepsForMove(oldP, newP2);
+    App.animating = true;
+    App.travelingPieceKey = mv.color+mv.idx;
+    App.game = incoming;
+    renderGame();
+    animateTravel(mv.color, mv.idx, oldP, steps).then(function(){
+      App.animating = false;
+      App.travelingPieceKey = null;
+      renderGame();
+    });
+    return true;
+  }catch(e){ return false; }
+}
+
+function syncPushGame(){
+  if(App.mode!=='online') return Promise.resolve(true);
+  onlineWriting = true;
+  var nextVersion = (App.online.version||0)+1;
+  var patch = {
+    game: App.game,
+    status: App.game.status==='finished' ? 'finished' : 'playing',
+    version: nextVersion,
+    updatedAt: Date.now()
+  };
+  return roomSet(App.online.roomCode, patch).then(function(res){
+    onlineWriting = false;
+    if(res && res.ok) App.online.version = nextVersion;
+    return !!(res && res.ok);
+  }).catch(function(){ onlineWriting=false; return false; });
+}
+
+// Host-only: reuse the same room/seats and start a fresh game without
+// returning everyone to the lobby. Guests pick it up via pollGameOnce.
+function onlineRematch(){
+  if(!App.online.isHost){ toast('Only the host can start a rematch'); return; }
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){ toast('Cannot reach server \u2014 try again'); return; }
+    var room = res.room;
+    var colors = room.seats.map(function(s){ return s.color; });
+    var names = {};
+    room.seats.forEach(function(s){ names[s.color] = s.name; });
+    var game = newGame(colors, names, undefined, undefined, room.rules);
+    var patch = { game: game, status:'playing', version:(room.version||0)+1, updatedAt: Date.now() };
+    roomSet(room.code, patch).then(function(setRes){
+      if(!setRes || !setRes.ok){ toast('Could not start rematch \u2014 try again'); return; }
+      App.game = game;
+      App.online.version = patch.version;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+    });
+  }).catch(function(){ toast('Network error \u2014 try again'); });
+}
+
+/* ======================================================================
+   GAME ACTIONS (shared by local + online)
+   ====================================================================== */
+function handleRollClick(fromUI){
+  if(!App.game || App.game.status!=='playing') return;
+  if(App.animating) return;
+  if(fromUI && !isHumanTurn()){ toast("It's not your turn"); return; }
+  if(!canActNow()){ toast("It's not your turn"); return; }
+  if(App.game.diceRolled) return;
+  var rollerColor = App.game.colors[App.game.turn];
+  var diceEl = document.getElementById('dice');
+  diceEl.classList.remove('rolling'); void diceEl.offsetWidth; diceEl.classList.add('rolling');
+  sfxRoll();
+  vibrate(15);
+  engineRoll(App.game);
+  if(App.game.diceRolled){
+    announce(colorLabel(App.game, rollerColor) + ' rolled ' + App.game.dice + '.');
+  } else if(App.game.log[0]){
+    announce(App.game.log[0]);
+  }
+  renderGame();
+  if(App.mode==='online') syncPushGame();
+}
+
+function handleMovePiece(color, idx){
+  if(!App.game || App.game.status!=='playing') return;
+  if(App.animating) return;
+  if(!canActNow()) return;
+  if(color !== App.game.colors[App.game.turn]) return;
+  if(App.game.movable.indexOf(idx)===-1) return;
+
+  var piece = findPiece(App.game, color, idx);
+  var oldP = piece.p;
+  var roll = App.game.dice;
+  var newP = (oldP===-1) ? 0 : oldP+roll;
+  var steps = getStepsForMove(oldP, newP);
+
+  App.animating = true;
+  App.travelingPieceKey = color+idx;
+  renderGame();
+
+  animateTravel(color, idx, oldP, steps).then(function(){
+    App.animating = false;
+    App.travelingPieceKey = null;
+    engineMove(App.game, idx);
+    var captureHappened = App.game.log[0] && App.game.log[0].indexOf('captured')!==-1;
+    if(captureHappened){ sfxCapture(); vibrate([25,35,25]); }
+    if(App.game.log[0]) announce(App.game.log[0]);
+    renderGame();
+    if(App.mode==='online') syncPushGame();
+  });
+}
+
+var _boardTouchMoved = false;
+boardEl.addEventListener('touchstart', function(e){
+  _boardTouchMoved = false;
+  var pieceEl = e.target.closest('.piece.movable');
+  if(!pieceEl) return;
+  e.preventDefault(); // suppress the 300ms delayed click
+  var color = pieceEl.dataset.color;
+  var idx = parseInt(pieceEl.dataset.idx, 10);
+  handleMovePiece(color, idx);
+}, {passive: false});
+boardEl.addEventListener('touchmove', function(){ _boardTouchMoved = true; }, {passive: true});
+boardEl.addEventListener('click', function(e){
+  // fallback for non-touch (mouse) — touchstart already handled touch
+  if(_boardTouchMoved) return;
+  var pieceEl = e.target.closest('.piece.movable');
+  if(!pieceEl) return;
+  var color = pieceEl.dataset.color;
+  var idx = parseInt(pieceEl.dataset.idx, 10);
+  handleMovePiece(color, idx);
+});
+
+document.getElementById('dice').addEventListener('click', function(){ handleRollClick(true); });
+document.getElementById('btn-roll').addEventListener('click', function(){ handleRollClick(true); });
+
+document.getElementById('btn-hint').addEventListener('click', function(){
+  if(!App.game || App.game.status!=='playing' || !isHumanTurn() || !App.game.diceRolled) return;
+  var color = App.game.colors[App.game.turn];
+  var idx = chooseAIMove(App.game, color);
+  if(idx===null) return;
+  var pieceEl = document.querySelector('.piece[data-color="'+color+'"][data-idx="'+idx+'"]');
+  if(pieceEl){
+    pieceEl.classList.remove('hint-pulse'); void pieceEl.offsetWidth; pieceEl.classList.add('hint-pulse');
+  }
+  vibrate(10);
+  announce('Suggestion: move piece ' + (idx+1) + '.');
+});
+
+document.getElementById('btn-log-toggle').addEventListener('click', function(){
+  var card = document.getElementById('log-card');
+  card.style.display = (card.style.display==='none' || !card.style.display) ? 'block' : 'none';
+});
+
+document.getElementById('btn-chat-toggle').addEventListener('click', function(){
+  openChatPanel();
+});
+document.getElementById('btn-chat-close').addEventListener('click', function(){
+  closeChatPanel();
+});
+document.getElementById('chat-overlay').addEventListener('click', function(e){
+  if(e.target.id==='chat-overlay') closeChatPanel(); // tap the dimmed backdrop to dismiss
+});
+document.getElementById('chat-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  var input = document.getElementById('chat-input');
+  sendChatMessage(input.value);
+  input.value='';
+});
+
+document.getElementById('btn-leave-game').addEventListener('click', function(){
+  history.back();
+});
+
+document.getElementById('btn-gameover-home').addEventListener('click', function(){
+  history.back();
+});
+
+document.getElementById('btn-share-result').addEventListener('click', function(){
+  if(!App.game) return;
+  var winnerName = colorLabel(App.game, App.game.winner);
+  var modeLabel = App.mode==='online' ? 'an online' : 'a local';
+  var moveCount = App.game.log ? App.game.log.length : 0;
+  var text = '\ud83c\udfc6 ' + winnerName + ' won ' + modeLabel + ' Ludo game with ' + App.game.colors.length + ' players (' + moveCount + ' moves)! \ud83c\udfb2';
+  if(navigator.share){
+    navigator.share({ text: text }).catch(function(){ /* user cancelled share sheet — no error needed */ });
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast('Result copied'); }).catch(function(){ toast(text); });
+  } else {
+    toast(text);
+  }
+});
+
+document.getElementById('btn-play-again').addEventListener('click', function(){
+  if(App.mode==='online'){
+    if(App.online.isHost){
+      onlineRematch();
+    } else {
+      toast('Waiting for the host to start a rematch');
+    }
+    return;
+  }
+  var colors = App.game.colors.slice();
+  var names = App.game.names;
+  var aiColors = App.game.aiColors ? App.game.aiColors.slice() : [];
+  var aiDifficulty = App.game.aiDifficulty ? Object.assign({}, App.game.aiDifficulty) : {};
+  App.game = newGame(colors, names, aiColors, aiDifficulty, App.game.rules);
+  recordGameStarted();
+  document.getElementById('log-card').style.display='none';
+  renderGame();
+  show('screen-game');
+});
+
+/* ======================================================================
+   RULES & SETTINGS SCREENS
+   ====================================================================== */
+document.getElementById('btn-open-rules').addEventListener('click', function(){ show('screen-rules'); });
+document.getElementById('btn-open-settings').addEventListener('click', function(){ renderSettings(); show('screen-settings'); });
+
+var THEME_OPTIONS = [
+  { id:'dark', label:'Dark', swatch:'linear-gradient(155deg,#1c4536,#0e2620)' },
+  { id:'light', label:'Light', swatch:'linear-gradient(155deg,#fffdf7,#dfe7d9)' }
+];
+
+function renderSettings(){
+  var row = document.getElementById('theme-pick-row');
+  row.innerHTML = '';
+  THEME_OPTIONS.forEach(function(opt){
+    var el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'theme-pick' + (App.theme===opt.id ? ' selected' : '');
+    el.innerHTML = '<div class="theme-swatch" style="background:'+opt.swatch+'"></div><span>'+opt.label+'</span>';
+    el.addEventListener('click', function(){
+      App.theme = opt.id;
+      applyTheme();
+      saveSettings();
+      renderSettings();
+    });
+    row.appendChild(el);
+  });
+
+  document.getElementById('toggle-sound').classList.toggle('on', App.soundOn);
+  document.getElementById('toggle-haptics').classList.toggle('on', App.hapticsOn);
+  document.getElementById('toggle-shapes').classList.toggle('on', App.shapesOn);
+
+  var stats = loadStats();
+  document.getElementById('stat-played').textContent = stats.played;
+  document.getElementById('stat-won').textContent = stats.won;
+
+  var historyCard = document.getElementById('history-card');
+  var history = stats.history || [];
+  if(history.length===0){
+    historyCard.innerHTML = '<div class="muted">No games yet.</div>';
+  } else {
+    historyCard.innerHTML = history.map(function(h){
+      var when = timeAgo(h.ts);
+      return '<div class="history-row"><div class="who"><span class="dot" style="background:'+ (COLORS[h.winnerColor]?COLORS[h.winnerColor].hex:'#999') +'"></span>' +
+        escapeHtml(h.winnerName) + ' won \u00b7 ' + escapeHtml(h.modeLabel) + '</div><div class="when">' + when + '</div></div>';
+    }).join('');
+  }
+}
+
+function timeAgo(ts){
+  if(!ts) return '';
+  var secs = Math.max(0, Math.floor((Date.now()-ts)/1000));
+  if(secs<60) return 'just now';
+  var mins = Math.floor(secs/60);
+  if(mins<60) return mins+'m ago';
+  var hrs = Math.floor(mins/60);
+  if(hrs<24) return hrs+'h ago';
+  var days = Math.floor(hrs/24);
+  return days+'d ago';
+}
+
+document.getElementById('toggle-sound').addEventListener('click', function(){
+  App.soundOn = !App.soundOn;
+  saveSettings();
+  renderSettings();
+});
+document.getElementById('toggle-haptics').addEventListener('click', function(){
+  App.hapticsOn = !App.hapticsOn;
+  saveSettings();
+  renderSettings();
+  if(App.hapticsOn) vibrate(15);
+});
+document.getElementById('toggle-shapes').addEventListener('click', function(){
+  App.shapesOn = !App.shapesOn;
+  applyShapes();
+  saveSettings();
+  renderSettings();
+});
+document.getElementById('btn-reset-stats').addEventListener('click', function(){
+  saveJSON(STATS_KEY, { played:0, won:0, history:[] });
+  renderSettings();
+  toast('Stats reset');
+});
+
+/* ======================================================================
+   DEEP-LINK JOIN & INSTALL PROMPT
+   ====================================================================== */
+function handleDeepLinkJoin(){
+  try{
+    var params = new URLSearchParams(window.location.search);
+    var room = (params.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+    if(room.length!==5) return;
+    var session = loadJSON(ONLINE_SESSION_KEY);
+    if(session && session.roomCode) return; // don't fight an in-progress reconnect
+    show('screen-join');
+    document.getElementById('join-code').value = room;
+    document.getElementById('btn-join-check').click();
+    if(window.history && window.history.replaceState){
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }catch(e){ /* URLSearchParams unsupported or blocked — ignore, deep link is a nicety */ }
+}
+
+function setupInstallPrompt(){
+  var btn = document.getElementById('btn-install');
+  var isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  if(isStandalone) return;
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    App.installPromptEvent = e;
+    if(btn) btn.style.display = (App.screen==='screen-home') ? 'block' : 'none';
+  });
+  window.addEventListener('appinstalled', function(){
+    App.installPromptEvent = null;
+    if(btn) btn.style.display='none';
+  });
+  if(btn){
+    btn.addEventListener('click', function(){
+      if(!App.installPromptEvent) return;
+      App.installPromptEvent.prompt();
+      App.installPromptEvent.userChoice.finally(function(){
+        App.installPromptEvent = null;
+        btn.style.display='none';
+      });
+    });
+  }
+}
+
+// iOS Safari (and other iOS browsers, which share its "Add to Home Screen"
+// share-sheet action) never fires beforeinstallprompt, so btn-install above
+// never appears there — leaving iPhone/iPad users with no in-app hint that
+// installing is even possible. Show a small dismissible banner instead,
+// pointing at the manual Share -> Add to Home Screen steps.
+var IOS_INSTALL_DISMISS_KEY = 'ludo_ios_install_dismissed_v1';
+function setupIOSInstallHint(){
+  var banner = document.getElementById('ios-install-banner');
+  if(!banner) return;
+  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone===true;
+  if(isStandalone) return;
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if(!isIOS) return;
+  if(loadJSON(IOS_INSTALL_DISMISS_KEY)) return;
+  banner.dataset.eligible = '1';
+  if(App.screen==='screen-home') banner.style.display='flex';
+  var dismissBtn = document.getElementById('btn-ios-install-dismiss');
+  if(dismissBtn){
+    dismissBtn.addEventListener('click', function(){
+      banner.style.display='none';
+      banner.dataset.eligible='0';
+      saveJSON(IOS_INSTALL_DISMISS_KEY, true);
+    });
+  }
+  // The banner itself can't trigger installation — iOS deliberately doesn't
+  // expose that to JS — so tapping it reveals the manual steps instead of
+  // doing nothing, which is what made it look broken/dead before.
+  var toggleBtn = document.getElementById('ios-install-toggle');
+  var steps = document.getElementById('ios-install-steps');
+  if(toggleBtn && steps){
+    toggleBtn.addEventListener('click', function(){
+      var expanded = toggleBtn.getAttribute('aria-expanded')==='true';
+      toggleBtn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      steps.style.display = expanded ? 'none' : 'block';
+    });
+  }
+}
+
+/* ======================================================================
+   INIT
+   ====================================================================== */
+show('screen-home');
+attemptReconnect();
+handleDeepLinkJoin();
+setupInstallPrompt();
+setupIOSInstallHint();
+
+if('serviceWorker' in navigator){
+  // Distinguish "this tab just got its first-ever controller" (normal,
+  // silent) from "a new version took over while this tab was already
+  // open" (worth telling the player about, since sw.js skips the usual
+  // wait-for-all-tabs-to-close step via skipWaiting()/clients.claim()).
+  var hadServiceWorkerController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if(hadServiceWorkerController){
+      toast('Updated! Refresh for the latest version.');
+    }
+    hadServiceWorkerController = true;
+  });
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(e){
+      console.error('Ludo: service worker registration failed', e);
+    });
+  });
+}
+
+})();
+</script>
+</body>
+</html>
