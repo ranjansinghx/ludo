@@ -74,6 +74,17 @@
 :root[data-theme="light"] input[type=text]{ background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.15); color:var(--cream); }
 :root[data-theme="light"] .toast{ background:rgba(30,30,26,.92); }
 *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+.piece:focus-visible, .dice:focus-visible, .color-chip:focus-visible, .ai-toggle:focus-visible,
+button:focus-visible, input:focus-visible{
+  outline:2.5px solid var(--yellow); outline-offset:2px;
+}
+.piece.movable{ cursor:pointer; }
+.piece.hint-pulse{ animation: hintPulse 0.55s ease-in-out 3; }
+@keyframes hintPulse{ 0%,100%{ transform:scale(1); filter:brightness(1); } 50%{ transform:scale(1.22); filter:brightness(1.5); } }
 html,body{height:100%;}
 body{
   margin:0;
@@ -227,6 +238,15 @@ input.code-input{
 .seat .nm{font-weight:600; flex:1;}
 .seat .you{font-size:11px; color:var(--yellow); font-weight:700;}
 .seat.empty{opacity:.35; border-style:dashed;}
+.seat-remove{
+  flex-shrink:0; width:26px; height:26px; border-radius:50%; font-size:14px; font-weight:700;
+  background:rgba(214,69,60,.16); border:1px solid rgba(214,69,60,.4); color:#ff8a80;
+  display:flex; align-items:center; justify-content:center;
+}
+.close-room-link{
+  display:block; text-align:center; font-size:12.5px; color:var(--cream-dim); font-weight:600;
+  padding:12px 0 2px; text-decoration:underline; text-underline-offset:2px;
+}
 .waiting-pulse{display:inline-block; width:8px;height:8px;border-radius:50%; background:var(--yellow); animation:pulse 1.4s ease infinite; margin-right:6px;}
 @keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
 
@@ -730,7 +750,7 @@ input.code-input{
 
     <div class="controls">
       <div class="dice-wrap">
-        <div class="dice" id="dice">
+        <div class="dice" id="dice" role="img" aria-label="Dice">
           <div class="pip" data-i="0"></div><div class="pip" data-i="1"></div><div class="pip" data-i="2"></div>
           <div class="pip" data-i="3"></div><div class="pip" data-i="4"></div><div class="pip" data-i="5"></div>
           <div class="pip" data-i="6"></div><div class="pip" data-i="7"></div><div class="pip" data-i="8"></div>
@@ -741,6 +761,7 @@ input.code-input{
         <div id="extra-tag-area"></div>
       </div>
     </div>
+    <button class="btn btn-secondary btn-block btn-sm" id="btn-hint" style="display:none; margin-top:-8px; margin-bottom:14px;">&#10024; Suggest a move</button>
 
     <div class="card log-card" id="log-card" style="display:none;">
       <span class="field-label">Game log</span>
@@ -758,6 +779,7 @@ input.code-input{
       <div class="win-color" id="gameover-color">&mdash;</div>
       <div class="gameover-actions">
         <button class="btn btn-primary btn-block" id="btn-play-again">Play Again</button>
+        <button class="btn btn-secondary btn-block" id="btn-share-result">Share Result</button>
         <button class="btn btn-secondary btn-block" id="btn-gameover-home">Back to Home</button>
       </div>
     </div>
@@ -765,6 +787,7 @@ input.code-input{
 
 </div>
 <div class="toast" id="toast"></div>
+<div id="aria-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 <canvas id="confetti-canvas"></canvas>
 
 <script>
@@ -1180,6 +1203,16 @@ function toast(msg){
   toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
 }
 
+// Pushes text into the aria-live region so screen readers narrate dice
+// rolls and moves. Cleared and re-set on a tick so repeated identical
+// messages (e.g. two 6s in a row) still get announced.
+function announce(msg){
+  var el = document.getElementById('aria-announcer');
+  if(!el || !msg) return;
+  el.textContent = '';
+  setTimeout(function(){ el.textContent = msg; }, 30);
+}
+
 /* ---------- sound (tiny synth blips, no external assets) ---------- */
 var actx=null;
 function beep(freq, dur, type){
@@ -1361,6 +1394,17 @@ function makePieceDot(color, idx, movable, justMoved){
   shape.className = 'piece-shape';
   shape.textContent = COLOR_SHAPES[color];
   d.appendChild(shape);
+  if(movable){
+    d.tabIndex = 0;
+    d.setAttribute('role', 'button');
+    d.setAttribute('aria-label', 'Move ' + COLORS[color].label + ' piece ' + (parseInt(idx,10)+1));
+    d.addEventListener('keydown', function(e){
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){
+        e.preventDefault();
+        handleMovePiece(color, idx);
+      }
+    });
+  }
   return d;
 }
 
@@ -1478,6 +1522,12 @@ function renderDice(){
   var rollBtn = document.getElementById('btn-roll');
   rollBtn.disabled = disabled;
   rollBtn.textContent = (App.game && App.game.diceRolled) ? 'Choose a piece' : 'Roll Dice';
+
+  var hintBtn = document.getElementById('btn-hint');
+  if(hintBtn){
+    var showHint = App.game && App.game.status==='playing' && isHumanTurn() && App.game.diceRolled && !App.animating && App.game.movable && App.game.movable.length>1;
+    hintBtn.style.display = showHint ? 'block' : 'none';
+  }
 }
 
 function renderGame(){
@@ -1779,6 +1829,18 @@ async function roomGet(code){
 // Always resolves (never throws). Result: {ok, unavailable, timedOut, forbidden}
 // Uses PATCH so concurrent writes don't clobber each other — only the fields
 // explicitly included in `data` are updated; everything else is left untouched.
+// Host-only: permanently remove a room (used by "Close room"). Guests
+// polling the lobby will see the room disappear and get bounced home.
+async function roomDelete(code){
+  if(!storageAvailable()) return { ok:false, unavailable:true };
+  try{
+    var res = await withTimeout(fetch(roomUrl(code), { method:'DELETE' }), STORAGE_TIMEOUT_MS);
+    return { ok: !!(res && res.ok), unavailable:false };
+  }catch(e){
+    return { ok:false, unavailable:false };
+  }
+}
+
 async function roomSet(code, data){
   if(!storageAvailable()) return { ok:false, unavailable:true, timedOut:false, forbidden:false };
   try{
@@ -2162,6 +2224,14 @@ function renderLobbySeats(room){
       var mine = seat.clientId===App.online.myClientId;
       div.innerHTML = '<span class="dot" style="background:'+COLORS[seat.color].hex+'"></span>'+
         '<span class="nm">'+escapeHtml(seat.name)+'</span>' + (mine?'<span class="you">YOU</span>':'');
+      if(App.online.isHost && !mine){
+        var rm = document.createElement('button');
+        rm.type='button'; rm.className='seat-remove'; rm.textContent='\u2715';
+        rm.title = 'Remove ' + seat.name;
+        rm.setAttribute('aria-label', 'Remove ' + seat.name + ' from the room');
+        rm.addEventListener('click', function(seatColor){ return function(){ removeSeat(room.code, seatColor); }; }(seat.color));
+        div.appendChild(rm);
+      }
     } else {
       div.className='seat empty';
       div.innerHTML = '<span class="dot" style="background:rgba(255,255,255,.15)"></span><span class="nm">Open seat</span>';
@@ -2181,10 +2251,42 @@ function renderLobbySeats(room){
     btn.disabled = !canStart;
     btn.addEventListener('click', function(){ startOnlineGame(room); });
     hostArea.appendChild(btn);
+    var closeLink = document.createElement('button');
+    closeLink.type='button'; closeLink.className='close-room-link';
+    closeLink.textContent = 'Close room';
+    closeLink.addEventListener('click', function(){ closeRoom(room.code); });
+    hostArea.appendChild(closeLink);
   } else {
     hostArea.style.display='none';
     guestArea.style.display='flex';
   }
+}
+
+// Host-only: free up a seat that a player left stuck (e.g. they closed the
+// tab without leaving cleanly). Fetches the freshest seat list first so we
+// don't clobber a seat someone else just took.
+function removeSeat(code, color){
+  roomGet(code).then(function(res){
+    if(res.timedOut || res.unavailable || !res.room){ toast('Cannot reach server \u2014 try again'); return; }
+    var room = res.room;
+    var newSeats = (room.seats||[]).filter(function(s){ return s.color!==color; });
+    roomSet(code, { seats:newSeats, updatedAt: Date.now() }).then(function(setRes){
+      if(!setRes || !setRes.ok){ toast('Could not remove player \u2014 try again'); return; }
+      toast(COLORS[color].label + ' seat freed up');
+      _runLobbyPoll();
+    });
+  });
+}
+
+function closeRoom(code){
+  if(!confirm('Close this room? Anyone still in it will be sent home.')) return;
+  roomDelete(code).then(function(res){
+    _stopLobbyLoop(); stopPolling();
+    App.mode=null;
+    clearOnlineSession();
+    show('screen-home');
+    toast(res && res.ok ? 'Room closed' : 'Room closed locally \u2014 server may still have it');
+  });
 }
 
 function startOnlineGame(roomSnapshot){
@@ -2428,11 +2530,17 @@ function handleRollClick(fromUI){
   if(fromUI && !isHumanTurn()){ toast("It's not your turn"); return; }
   if(!canActNow()){ toast("It's not your turn"); return; }
   if(App.game.diceRolled) return;
+  var rollerColor = App.game.colors[App.game.turn];
   var diceEl = document.getElementById('dice');
   diceEl.classList.remove('rolling'); void diceEl.offsetWidth; diceEl.classList.add('rolling');
   sfxRoll();
   vibrate(15);
   engineRoll(App.game);
+  if(App.game.diceRolled){
+    announce(colorLabel(App.game, rollerColor) + ' rolled ' + App.game.dice + '.');
+  } else if(App.game.log[0]){
+    announce(App.game.log[0]);
+  }
   renderGame();
   if(App.mode==='online') syncPushGame();
 }
@@ -2460,6 +2568,7 @@ function handleMovePiece(color, idx){
     engineMove(App.game, idx);
     var captureHappened = App.game.log[0] && App.game.log[0].indexOf('captured')!==-1;
     if(captureHappened){ sfxCapture(); vibrate([25,35,25]); }
+    if(App.game.log[0]) announce(App.game.log[0]);
     renderGame();
     if(App.mode==='online') syncPushGame();
   });
@@ -2489,6 +2598,19 @@ boardEl.addEventListener('click', function(e){
 document.getElementById('dice').addEventListener('click', function(){ handleRollClick(true); });
 document.getElementById('btn-roll').addEventListener('click', function(){ handleRollClick(true); });
 
+document.getElementById('btn-hint').addEventListener('click', function(){
+  if(!App.game || App.game.status!=='playing' || !isHumanTurn() || !App.game.diceRolled) return;
+  var color = App.game.colors[App.game.turn];
+  var idx = chooseAIMove(App.game, color);
+  if(idx===null) return;
+  var pieceEl = document.querySelector('.piece[data-color="'+color+'"][data-idx="'+idx+'"]');
+  if(pieceEl){
+    pieceEl.classList.remove('hint-pulse'); void pieceEl.offsetWidth; pieceEl.classList.add('hint-pulse');
+  }
+  vibrate(10);
+  announce('Suggestion: move piece ' + (idx+1) + '.');
+});
+
 document.getElementById('btn-log-toggle').addEventListener('click', function(){
   var card = document.getElementById('log-card');
   card.style.display = (card.style.display==='none' || !card.style.display) ? 'block' : 'none';
@@ -2508,6 +2630,21 @@ document.getElementById('btn-gameover-home').addEventListener('click', function(
   App.mode = null;
   clearOnlineSession();
   show('screen-home');
+});
+
+document.getElementById('btn-share-result').addEventListener('click', function(){
+  if(!App.game) return;
+  var winnerName = colorLabel(App.game, App.game.winner);
+  var modeLabel = App.mode==='online' ? 'an online' : 'a local';
+  var moveCount = App.game.log ? App.game.log.length : 0;
+  var text = '\ud83c\udfc6 ' + winnerName + ' won ' + modeLabel + ' Ludo game with ' + App.game.colors.length + ' players (' + moveCount + ' moves)! \ud83c\udfb2';
+  if(navigator.share){
+    navigator.share({ text: text }).catch(function(){ /* user cancelled share sheet — no error needed */ });
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast('Result copied'); }).catch(function(){ toast(text); });
+  } else {
+    toast(text);
+  }
 });
 
 document.getElementById('btn-play-again').addEventListener('click', function(){
