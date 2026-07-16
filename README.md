@@ -6,12 +6,21 @@ No build step, no dependencies to install — the app is `index.html` plus a sma
 
 ## Features
 
-- **Classic Ludo rules** — four colors (red, green, yellow, blue), capturing, safe squares, and the standard "roll a 6 for an extra turn" rule (three sixes in a row forfeits the turn by default — toggleable, see House rules below).
+- **Classic Ludo rules** — four colors (red, green, yellow, blue), capturing, safe squares, blockades, and the standard "roll a 6 for an extra turn" rule (three sixes in a row forfeits the turn by default — toggleable, see House rules below).
+- **Blockades** — two of your own pieces sharing a square form a blockade that opponents can neither land on nor pass through. Toggleable per-game, same as the three-6s rule.
 - **Local mode** — 2–4 players pass the phone around on a single device.
 - **Online mode** — create a room, share a short join code, and play live with friends on their own devices. Game state syncs automatically between all players.
+- **Spectator mode** — anyone with a room code can watch a game read-only, without taking a seat — even if the room is full or the game already started. Spectators see the live board, chat, and reactions, and can join in on the chat/emoji themselves.
 - **In-game chat** — a lightweight text chat panel for online rooms, with an unread badge, alongside the existing emoji reactions.
 - **AFK handling** — an online turn left idle too long is automatically skipped (by the host, or by any other seated player if the host itself has gone quiet); after two skips in a row, that player's pieces are handed to the built-in AI so the game can keep going without them.
-- **House rules** — toggle whether three 6s in a row forfeits the turn, set per-game in local setup or per-room by the host when creating an online room.
+- **House rules** — toggle whether three 6s in a row forfeits the turn, and whether blockades are in play. Set per-game in local setup or per-room by the host when creating an online room.
+- **Three AI difficulty tiers** — Easy (mostly random), Medium (plays the same heuristic as Hard but isn't always optimal), and Hard (always takes its best-scored move, including actively forming blockades).
+- **Move hints** — a "Suggest a move" button runs the same AI heuristic on your own turn and pulses the piece it'd move, without moving it for you.
+- **Turn timer** — a small running-seconds badge next to the turn banner shows how long the current player has been thinking, both locally and online.
+- **Reconnect on reload** — online sessions are persisted per-device, so refreshing the page, backgrounding the app, or a dropped connection silently rejoins your seat in the same room (with a "Reconnecting…" banner) instead of losing your spot.
+- **Stats and game history** — a settings-screen record of games played/won and a short list of recent results (winner, mode, and how long ago), stored locally on your device with a one-tap reset.
+- **Share result** — after a game, share the result via the OS share sheet (or copy it to the clipboard as a fallback) to post to friends.
+- **Sound, haptics, and accessibility toggles** — optional sound effects and vibration feedback on rolls/captures/wins, a light/dark theme switch, and a colorblind-friendly mode that adds distinct shapes to each color's pieces.
 - **Polished mobile UI** — animated dice rolls, piece movement, captures, and a full-screen app-like layout with safe-area support for notched phones.
 - **Installable (PWA)** — "Add to Home Screen" on phones, or install from the browser's install icon on desktop. Runs full-screen like a native app, and local (pass-and-play) mode keeps working offline once installed.
 - **Zero installation** — pure HTML/CSS/JS, works straight from a static file host.
@@ -64,6 +73,7 @@ No API keys or server code are required — the client talks to the Realtime Dat
 - **There is no server-side move validation.** Any client connected to a room can, in principle, write arbitrary game state (this is the trade-off of a serverless, client-synced design). Don't use this for anything beyond a casual game with people you trust.
 - **Player names are escaped before rendering**, so a malicious player name can't inject HTML/JS into other players' screens. Chat messages go through the same escaping.
 - **Chat and reactions are unmoderated and visible to anyone with the room code** — same trust model as the rest of the room's synced state. Don't rely on this for anything you wouldn't say in front of a stranger who guessed your code.
+- **Stats, history, settings, and the online reconnect seat are all stored in `localStorage` on your own device** — nothing about them is sent anywhere else, and they don't sync across devices or browsers. Clearing site data (or using a different browser/device) resets them.
 - If you deploy on a host that supports custom HTTP headers (Netlify, Cloudflare Pages, Vercel, etc.), consider adding a `_headers` file with a stricter Content-Security-Policy, clickjacking protection, and other hardening headers on top of the `<meta>` CSP already in `index.html`. (This project doesn't ship one yet — the `<meta>` CSP is the only protection in place out of the box.) Hosts that ignore `_headers` (e.g. plain GitHub Pages) still get the `<meta>` CSP, just without `frame-ancestors` (browsers only honor that one via the HTTP header).
 
 ## How to Play
@@ -71,8 +81,9 @@ No API keys or server code are required — the client talks to the Realtime Dat
 1. From the home screen, choose **Play on this device** (local) or **Play online with friends**.
 2. **Local:** pick 2–4 colors and player names, then tap **Start Game**. Toggle the "Three 6s forfeits turn" house rule on the setup screen if your group plays it differently.
 3. **Online:** the host creates a room (picking seats and house rules) and shares the generated room code; other players join using that code from the lobby screen. The host starts the game once everyone's seated.
-4. Roll the dice on your turn and tap a movable piece to move it. Land on an opponent to send their piece home, roll a 6 to get an extra turn, and race all four pieces home to win.
-5. In online games, use the emoji reactions or the chat panel to talk to the table. If someone goes quiet, their turn is auto-skipped after a short wait, and after two skips in a row the computer takes over their pieces so the game keeps moving.
+4. Roll the dice on your turn and tap a movable piece to move it. Land on an opponent to send their piece home, roll a 6 to get an extra turn, and race all four pieces home to win. Stuck? Tap **Suggest a move** to have the AI highlight a piece for you, without moving it.
+5. In online games, use the emoji reactions or the chat panel to talk to the table. If someone goes quiet, their turn is auto-skipped after a short wait, and after two skips in a row the computer takes over their pieces so the game keeps moving. If your own connection drops or the tab reloads, reopening the app reconnects you to the same seat automatically.
+6. After a game, share the result from the game-over screen, and check the Settings screen any time for your games-played/won stats, recent game history, and sound/haptics/theme/colorblind-shapes preferences.
 
 ## Tech Stack
 

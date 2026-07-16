@@ -632,6 +632,10 @@ input.code-input{
         <div class="rule-txt"><strong>Extra turns</strong><p>Rolling a 6, capturing a piece, or getting a piece all the way home earns another roll. Three 6s in a row forfeits the turn.</p></div>
       </div>
       <div class="rule-item">
+        <div class="rule-icon">&#128737;</div>
+        <div class="rule-txt"><strong>Blockades</strong><p>Two of your own pieces sharing a square form a blockade &mdash; opponents can't land on it or pass through it. Toggleable as a house rule.</p></div>
+      </div>
+      <div class="rule-item">
         <div class="rule-icon">&#127942;</div>
         <div class="rule-txt"><strong>Winning</strong><p>Get all four of your pieces all the way around the board and into your home column to win. First color to do it takes the game.</p></div>
       </div>
@@ -695,6 +699,10 @@ input.code-input{
           <div class="txt"><strong>Three 6s forfeits turn</strong><span>Rolling three 6s in a row ends your turn with no move</span></div>
           <button class="switch" id="toggle-rule-three-sixes"></button>
         </div>
+        <div class="toggle-row">
+          <div class="txt"><strong>Blockades</strong><span>Two of your pieces on one square block opponents from passing</span></div>
+          <button class="switch" id="toggle-rule-blockades"></button>
+        </div>
       </div>
       <div class="spacer" style="flex:1;"></div>
       <button class="btn btn-primary btn-block" id="btn-local-start">Start Game</button>
@@ -744,6 +752,10 @@ input.code-input{
           <div class="txt"><strong>Three 6s forfeits turn</strong><span>Applies to everyone at this table</span></div>
           <button class="switch" id="toggle-create-rule-three-sixes"></button>
         </div>
+        <div class="toggle-row">
+          <div class="txt"><strong>Blockades</strong><span>Two of a color's pieces on one square block opponents from passing</span></div>
+          <button class="switch" id="toggle-create-rule-blockades"></button>
+        </div>
       </div>
       <div class="spacer" style="flex:1;"></div>
       <button class="btn btn-primary btn-block" id="btn-create-confirm">Create Room</button>
@@ -770,6 +782,7 @@ input.code-input{
       <div class="spacer" style="flex:1;"></div>
       <button class="btn btn-secondary btn-block" id="btn-join-check">Find Room</button>
       <button class="btn btn-primary btn-block" id="btn-join-confirm" style="display:none; margin-top:10px;">Join Room</button>
+      <button class="btn btn-secondary btn-block" id="btn-spectate-confirm" style="display:none; margin-top:10px;">&#128065; Watch as Spectator</button>
     </div>
   </section>
 
@@ -828,7 +841,7 @@ input.code-input{
         <div id="extra-tag-area"></div>
       </div>
     </div>
-    <button class="btn btn-secondary btn-block btn-sm" id="btn-hint" style="display:none; margin-top:-8px; margin-bottom:14px;">&#10024; Suggest a move</button>
+    <button class="btn btn-secondary btn-block btn-sm" id="btn-hint" style="display:none; margin-top:10px; margin-bottom:14px;">&#10024; Suggest a move</button>
 
     <div class="card log-card" id="log-card" style="display:none;">
       <span class="field-label">Game log</span>
@@ -915,7 +928,7 @@ function newGame(colorList, names, aiColors, aiDifficulty, rules){
     names: Object.assign({}, names),
     aiColors: (aiColors||[]).slice(),
     aiDifficulty: Object.assign({}, aiDifficulty),
-    rules: Object.assign({ threeSixesForfeit:true }, rules||{}),
+    rules: Object.assign({ threeSixesForfeit:true, blockades:true }, rules||{}),
     pieces: pieces,
     turn: 0,
     dice: null,
@@ -940,13 +953,54 @@ function findPiece(game, color, idx){
   return null;
 }
 
+// A "blockade" is two or more of one color's pieces sharing a main-track
+// square. Opponents can neither land on nor pass through it — the classic
+// Ludo house rule. Home columns can't be blockaded (only one color ever
+// enters its own home column), so this only ever applies to the shared
+// 0-50 track. Toggleable per-game via rules.blockades (default on).
+function blockadesEnabled(game){ return !game.rules || game.rules.blockades !== false; }
+
+function isBlockadeCell(game, gIdx, excludeColor){
+  var counts = {};
+  for(var i=0;i<game.pieces.length;i++){
+    var pc = game.pieces[i];
+    if(pc.color===excludeColor) continue;
+    if(pc.p<0 || pc.p>50) continue;
+    if(globalIdxFor(pc.color, pc.p)!==gIdx) continue;
+    counts[pc.color] = (counts[pc.color]||0) + 1;
+    if(counts[pc.color]>=2) return true;
+  }
+  return false;
+}
+
+// Checks every square a piece would cross between oldP (exclusive) and
+// newP (inclusive) on the shared track — not just the landing square —
+// since a blockade stops passage, not only occupation.
+function isPathBlockedByOthers(game, color, oldP, newP){
+  if(!blockadesEnabled(game)) return false;
+  var start = (oldP===-1) ? 0 : oldP+1;
+  var end = Math.min(newP, 50);
+  for(var p=start; p<=end; p++){
+    if(isBlockadeCell(game, globalIdxFor(color, p), color)) return true;
+  }
+  return false;
+}
+
 function legalMoves(game, color, roll){
   var out = [];
   for(var idx=0; idx<4; idx++){
     var piece = findPiece(game, color, idx);
     if(piece.p===57) continue;
-    if(piece.p===-1){ if(roll===6) out.push(idx); continue; }
-    if(piece.p+roll<=57) out.push(idx);
+    if(piece.p===-1){
+      if(roll!==6) continue;
+      if(isPathBlockedByOthers(game, color, -1, 0)) continue;
+      out.push(idx);
+      continue;
+    }
+    var newP = piece.p+roll;
+    if(newP>57) continue;
+    if(isPathBlockedByOthers(game, color, piece.p, newP)) continue;
+    out.push(idx);
   }
   return out;
 }
@@ -1052,8 +1106,14 @@ function endTurn(game){
 
 /* ---------- simple AI heuristic ----------
    Prefers, in order: finishing a piece, capturing an opponent, getting a
-   piece out of the yard, landing on a safe square, then generally the
-   most-advanced piece. Nothing exhaustive — just enough to feel purposeful. */
+   piece out of the yard, landing on a safe square or forming a blockade,
+   then generally the most-advanced piece. Nothing exhaustive — just enough
+   to feel purposeful.
+   Three difficulty tiers, all built on the same scoring pass:
+     - easy:   mostly random, only nudged toward leaving the yard.
+     - medium: uses the real scoring but isn't optimal — it settles for its
+               second-best option about a third of the time, so it's beatable.
+     - hard:   always takes the top-scored move. */
 function chooseAIMove(game, color){
   var moves = game.movable;
   if(!moves || moves.length===0) return null;
@@ -1067,8 +1127,7 @@ function chooseAIMove(game, color){
     return moves[Math.floor(Math.random()*moves.length)];
   }
   var roll = game.dice;
-  var best = null, bestScore = -Infinity;
-  moves.forEach(function(idx){
+  var scored = moves.map(function(idx){
     var piece = findPiece(game, color, idx);
     var oldP = piece.p;
     var newP = (oldP===-1) ? 0 : oldP+roll;
@@ -1077,18 +1136,26 @@ function chooseAIMove(game, color){
     if(newP>=0 && newP<=50){
       var gIdx = globalIdxFor(color, newP);
       if(!SAFE_IDX.has(gIdx)){
+        var ownAlreadyThere = 0;
         game.pieces.forEach(function(pc){
-          if(pc.color===color || pc.p<0 || pc.p>50) return;
-          if(globalIdxFor(pc.color, pc.p)===gIdx) score += 80;
+          if(pc.p<0 || pc.p>50) return;
+          if(globalIdxFor(pc.color, pc.p)!==gIdx) return;
+          if(pc.color===color){ ownAlreadyThere++; return; }
+          score += 80; // captures an opponent
         });
+        // Pairing up with our own piece forms a blockade opponents can't
+        // pass — valuable enough to actively seek out, not just tolerate.
+        if(blockadesEnabled(game) && ownAlreadyThere>=1) score += 35;
       }
       if(SAFE_IDX.has(gIdx)) score += 10;
     }
     if(oldP===-1) score += 40;
     score += newP*0.3;
-    if(score>bestScore){ bestScore=score; best=idx; }
+    return { idx: idx, score: score };
   });
-  return best!==null ? best : moves[0];
+  scored.sort(function(a,b){ return b.score - a.score; });
+  if(difficulty==='medium' && scored.length>1 && Math.random()<0.35) return scored[1].idx;
+  return scored[0].idx;
 }
 
 /* ======================================================================
@@ -1097,8 +1164,8 @@ function chooseAIMove(game, color){
 var App = {
   screen:'screen-home',
   mode:null, // 'local' | 'online'
-  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set(), aiDifficulty:{}, rules:{ threeSixesForfeit:true } },
-  online:{ roomCode:null, myColor:null, myClientId:null, myName:null, isHost:false, pollHandle:null, joinedRoom:null, version:null, lastReactionTs:0, chatMessages:[], chatOpen:false, chatUnread:0, chatLastTs:0, _chatSynced:false },
+  local:{ selected:new Set(['red','yellow']), names:{}, ai:new Set(), aiDifficulty:{}, rules:{ threeSixesForfeit:true, blockades:true } },
+  online:{ roomCode:null, myColor:null, myClientId:null, myName:null, isHost:false, isSpectator:false, pollHandle:null, joinedRoom:null, version:null, lastReactionTs:0, chatMessages:[], chatOpen:false, chatUnread:0, chatLastTs:0, _chatSynced:false },
   game:null,
   soundOn:true,
   hapticsOn:true,
@@ -1165,7 +1232,7 @@ function loadLocalPrefs(){
   if(p.names && typeof p.names==='object') App.local.names = p.names;
   if(Array.isArray(p.ai)) App.local.ai = new Set(p.ai);
   if(p.aiDifficulty && typeof p.aiDifficulty==='object') App.local.aiDifficulty = p.aiDifficulty;
-  if(p.rules && typeof p.rules==='object') App.local.rules = Object.assign({ threeSixesForfeit:true }, p.rules);
+  if(p.rules && typeof p.rules==='object') App.local.rules = Object.assign({ threeSixesForfeit:true, blockades:true }, p.rules);
 }
 function saveLocalPrefs(){
   saveJSON(LOCAL_PREFS_KEY, {
@@ -1248,6 +1315,7 @@ function attemptReconnect(){
     App.online.myColor = mySeat.color;
     App.online.myName = mySeat.name;
     App.online.isHost = (room.hostClientId===App.online.myClientId);
+    App.online.isSpectator = false;
     App.online.lastReactionTs = Date.now();
     if(banner) banner.style.display='none';
 
@@ -1659,6 +1727,7 @@ function renderGame(){
   var isAITurn = game.aiColors && game.aiColors.indexOf(myTurnColor)!==-1;
   document.getElementById('turn-who').innerHTML = escapeHtml(colorLabel(game, myTurnColor)) +
     (App.mode==='online' && myTurnColor===App.online.myColor ? ' (You)' : '') +
+    (App.mode==='online' && App.online.isSpectator ? ' <span class="ai-tag">\uD83D\uDC41 Watching</span>' : '') +
     (isAITurn ? ' <span class="ai-tag">AI</span>' : '');
 
   var what = '';
@@ -1824,12 +1893,12 @@ function renderLocalSetup(){
     if(App.local.ai.has(color)){
       var diffRow = document.createElement('div');
       diffRow.className = 'diff-row';
-      ['easy','hard'].forEach(function(level){
+      ['easy','medium','hard'].forEach(function(level){
         var pill = document.createElement('button');
         pill.type='button';
         var current = App.local.aiDifficulty[color] || 'hard';
         pill.className = 'diff-pill' + (current===level ? ' selected':'');
-        pill.textContent = level==='easy' ? 'Easy' : 'Hard';
+        pill.textContent = level==='easy' ? 'Easy' : (level==='medium' ? 'Medium' : 'Hard');
         pill.addEventListener('click', function(){
           App.local.aiDifficulty[color] = level;
           saveLocalPrefs();
@@ -1843,6 +1912,7 @@ function renderLocalSetup(){
   });
 
   document.getElementById('toggle-rule-three-sixes').classList.toggle('on', App.local.rules.threeSixesForfeit!==false);
+  document.getElementById('toggle-rule-blockades').classList.toggle('on', App.local.rules.blockades!==false);
 }
 
 document.getElementById('btn-local').addEventListener('click', function(){
@@ -1853,6 +1923,12 @@ document.getElementById('btn-local').addEventListener('click', function(){
 
 document.getElementById('toggle-rule-three-sixes').addEventListener('click', function(){
   App.local.rules.threeSixesForfeit = !(App.local.rules.threeSixesForfeit!==false);
+  saveLocalPrefs();
+  renderLocalSetup();
+});
+
+document.getElementById('toggle-rule-blockades').addEventListener('click', function(){
+  App.local.rules.blockades = !(App.local.rules.blockades!==false);
   saveLocalPrefs();
   renderLocalSetup();
 });
@@ -2007,7 +2083,7 @@ function stopPolling(){
 /* ======================================================================
    ONLINE MODE: create room
    ====================================================================== */
-var createState = { color:'red', seats:4, rules:{ threeSixesForfeit:true } };
+var createState = { color:'red', seats:4, rules:{ threeSixesForfeit:true, blockades:true } };
 
 function renderCreateColorChips(){
   var el = document.getElementById('create-color-chips');
@@ -2030,6 +2106,10 @@ document.getElementById('create-seats-plus').addEventListener('click', function(
 document.getElementById('toggle-create-rule-three-sixes').addEventListener('click', function(){
   createState.rules.threeSixesForfeit = !(createState.rules.threeSixesForfeit!==false);
   document.getElementById('toggle-create-rule-three-sixes').classList.toggle('on', createState.rules.threeSixesForfeit!==false);
+});
+document.getElementById('toggle-create-rule-blockades').addEventListener('click', function(){
+  createState.rules.blockades = !(createState.rules.blockades!==false);
+  document.getElementById('toggle-create-rule-blockades').classList.toggle('on', createState.rules.blockades!==false);
 });
 
 var onlineCheckFailCount = 0;
@@ -2070,6 +2150,7 @@ document.getElementById('btn-create-room').addEventListener('click', function(){
   renderCreateColorChips();
   document.getElementById('create-seats-count').textContent = createState.seats;
   document.getElementById('toggle-create-rule-three-sixes').classList.toggle('on', createState.rules.threeSixesForfeit!==false);
+  document.getElementById('toggle-create-rule-blockades').classList.toggle('on', createState.rules.blockades!==false);
   show('screen-create');
 });
 document.getElementById('btn-join-room').addEventListener('click', function(){ show('screen-join'); });
@@ -2093,7 +2174,7 @@ document.getElementById('btn-create-confirm').addEventListener('click', async fu
     seats: [{ color: createState.color, clientId: App.online.myClientId, name: name }],
     status: 'lobby',
     game: null,
-    rules: { threeSixesForfeit: createState.rules.threeSixesForfeit!==false },
+    rules: { threeSixesForfeit: createState.rules.threeSixesForfeit!==false, blockades: createState.rules.blockades!==false },
     version: 1,
     updatedAt: Date.now()
   };
@@ -2110,6 +2191,7 @@ document.getElementById('btn-create-confirm').addEventListener('click', async fu
     App.online.myColor = createState.color;
     App.online.myName = name;
     App.online.isHost = true;
+    App.online.isSpectator = false;
     App.online.lastReactionTs = Date.now();
     saveOnlineSession();
     enterLobby();
@@ -2145,27 +2227,51 @@ document.getElementById('btn-join-check').addEventListener('click', async functi
   statusEl.textContent = 'Looking for room\u2026';
   document.getElementById('join-color-section').style.display='none';
   document.getElementById('btn-join-confirm').style.display='none';
+  document.getElementById('btn-spectate-confirm').style.display='none';
   roomGet(code).then(function(res){
     checkBtn.disabled = false;
     if(res.timedOut){ statusEl.textContent = 'Connection is slow right now \u2014 check your internet and try again.'; return; }
     if(res.forbidden){ statusEl.textContent = 'Database rejected the lookup \u2014 check your Firebase rules allow read access to /ludo_rooms.'; return; }
     var room = res.room;
     if(!room){ statusEl.textContent = 'No room found with that code.'; return; }
-    if(room.status!=='lobby'){ statusEl.textContent = 'That game has already started.'; return; }
+    joinState.code = code; joinState.room = room;
     var taken = new Set(room.seats.map(function(s){ return s.color; }));
     var free = ALL_COLORS.filter(function(c){ return !taken.has(c); });
-    if(room.seats.length>=room.maxPlayers || free.length===0){ statusEl.textContent = 'That room is full.'; return; }
-    joinState.code = code; joinState.room = room;
-    joinState.color = free[0];
-    statusEl.textContent = (room.seats.length)+' of '+room.maxPlayers+' seats taken. Pick a color and join in!';
-    renderJoinColorChips(free);
-    document.getElementById('join-color-section').style.display='block';
-    document.getElementById('btn-join-confirm').style.display='flex';
+    var canJoinAsPlayer = room.status==='lobby' && room.seats.length<room.maxPlayers && free.length>0;
+    // A room that's found at all can always be watched, whether it's full,
+    // already playing, or already finished — spectating never needs a seat.
+    document.getElementById('btn-spectate-confirm').style.display='flex';
+    if(canJoinAsPlayer){
+      joinState.color = free[0];
+      statusEl.textContent = (room.seats.length)+' of '+room.maxPlayers+' seats taken. Pick a color and join in, or just watch.';
+      renderJoinColorChips(free);
+      document.getElementById('join-color-section').style.display='block';
+      document.getElementById('btn-join-confirm').style.display='flex';
+    } else if(room.status==='lobby'){
+      statusEl.textContent = 'That room is full \u2014 you can still watch.';
+    } else if(room.status==='playing'){
+      statusEl.textContent = 'That game is already in progress \u2014 you can still watch.';
+    } else {
+      statusEl.textContent = 'That game has finished \u2014 you can still watch.';
+    }
   }).catch(function(e){
     checkBtn.disabled = false;
     console.error('Ludo: join check error', e);
     statusEl.textContent = 'Something went wrong looking up that room \u2014 try again.';
   });
+});
+
+document.getElementById('btn-spectate-confirm').addEventListener('click', function(){
+  if(!joinState.code) return;
+  var name = (document.getElementById('join-name').value||'').trim() || 'Spectator';
+  App.mode='online';
+  App.online.roomCode = joinState.code;
+  App.online.myColor = null;
+  App.online.myName = name;
+  App.online.isHost = false;
+  App.online.isSpectator = true;
+  App.online.lastReactionTs = Date.now();
+  enterSpectate();
 });
 
 function renderJoinColorChips(freeColors){
@@ -2214,6 +2320,7 @@ document.getElementById('btn-join-confirm').addEventListener('click', async func
       App.online.myColor = joinState.color;
       App.online.myName = name;
       App.online.isHost = false;
+      App.online.isSpectator = false;
       App.online.lastReactionTs = Date.now();
       saveOnlineSession();
       enterLobby();
@@ -2255,7 +2362,7 @@ function sanitizeGame(game){
   if(typeof game.turn !== 'number') game.turn = 0;
   if(typeof game.status !== 'string') game.status = 'playing';
   if(typeof game.afkSkips !== 'object' || game.afkSkips === null) game.afkSkips = {};
-  if(typeof game.rules !== 'object' || game.rules === null) game.rules = { threeSixesForfeit:true };
+  if(typeof game.rules !== 'object' || game.rules === null) game.rules = { threeSixesForfeit:true, blockades:true };
   return game;
 }
 
@@ -2270,6 +2377,37 @@ function enterLobby(){
   stopPolling();
   _runLobbyPoll();                                      // fire immediately
   _lobbyPollTimer = setInterval(_runLobbyPoll, 800);   // then every 800 ms
+}
+
+// Spectators never take a seat, so they skip the join-write entirely — just
+// point the same polling machinery at the room. If the game is already
+// underway (or even finished) they drop straight into the board read-only;
+// if it's still in the lobby, they watch it fill up like anyone else.
+function enterSpectate(){
+  App.online.chatMessages = [];
+  App.online.chatUnread = 0;
+  App.online._chatSynced = false;
+  App.online.chatLastTs = 0;
+  _stopLobbyLoop();
+  stopPolling();
+  roomGet(App.online.roomCode).then(function(res){
+    if(res.timedOut || res.unavailable){ toast('Connection is slow right now \u2014 try again'); show('screen-home'); return; }
+    var room = res.room;
+    if(!room){ toast('Room no longer exists'); show('screen-home'); return; }
+    if(room.game && (room.status==='playing' || room.status==='finished')){
+      App.game = sanitizeGame(room.game);
+      App.online.version = room.version || 0;
+      document.getElementById('log-card').style.display='none';
+      renderGame();
+      show('screen-game');
+      App.online.pollHandle = setInterval(pollGameOnce, 500);
+    } else {
+      enterLobby();
+    }
+  }).catch(function(){
+    toast('Could not reach room \u2014 try again');
+    show('screen-home');
+  });
 }
 
 // Re-poll the instant the page becomes visible (tab switch, phone unlock, etc.)
@@ -2356,7 +2494,9 @@ function renderLobbySeats(room){
   var rulesNote = document.getElementById('lobby-rules-note');
   if(rulesNote){
     var threeSixesOn = !room.rules || room.rules.threeSixesForfeit !== false;
-    rulesNote.textContent = 'House rule: three 6s in a row ' + (threeSixesOn ? 'forfeits the turn.' : 'is allowed \u2014 keep rolling.');
+    var blockadesOn = !room.rules || room.rules.blockades !== false;
+    rulesNote.textContent = 'House rules: three 6s in a row ' + (threeSixesOn ? 'forfeits the turn' : 'is allowed \u2014 keep rolling') +
+      '; blockades are ' + (blockadesOn ? 'on.' : 'off.');
   }
   var hostArea = document.getElementById('lobby-host-area');
   var guestArea = document.getElementById('lobby-guest-area');
@@ -2379,6 +2519,12 @@ function renderLobbySeats(room){
   } else {
     hostArea.style.display='none';
     guestArea.style.display='flex';
+    var guestMsg = guestArea.querySelector('.waiting-pulse');
+    if(guestMsg && guestMsg.nextSibling){
+      guestMsg.nextSibling.textContent = App.online.isSpectator
+        ? "Watching \u2014 the game will start once the host begins\u2026"
+        : 'Waiting for the host to start the game\u2026';
+    }
   }
 }
 
@@ -2488,6 +2634,7 @@ document.getElementById('lobby-back').addEventListener('click', function(){
   _stopLobbyLoop();
   stopPolling();
   App.mode=null;
+  App.online.isSpectator=false;
   clearOnlineSession();
   show('screen-online-menu');
 });
@@ -2621,11 +2768,21 @@ function pollGameOnce(){
 
 // Emoji reactions ride on a separate `reaction` field on the room so they
 // never touch the game/version — sending one can't clash with a move.
+// Seated players are identified by color, same as everywhere else in the
+// room state. Spectators have no color, so they're identified by their
+// stable per-device client id instead — this keeps "is this my own
+// message/reaction" comparisons correct even with several spectators
+// watching the same room at once (all of whom would otherwise share the
+// same null color and get attributed to each other).
+function myChatIdentity(){
+  return App.online.myColor || ('spectator:' + App.online.myClientId);
+}
+
 function handleIncomingReaction(room){
   if(!room.reaction || !room.reaction.ts) return;
   if(room.reaction.ts <= App.online.lastReactionTs) return;
   App.online.lastReactionTs = room.reaction.ts;
-  if(room.reaction.from === App.online.myColor) return; // don't re-show our own
+  if(room.reaction.from === myChatIdentity()) return; // don't re-show our own
   showReactionBubble(room.reaction.emoji);
 }
 
@@ -2648,7 +2805,7 @@ function sendReaction(emoji){
   if(App.mode!=='online' || !App.online.roomCode) return;
   vibrate(10);
   showReactionBubble(emoji);
-  roomSet(App.online.roomCode, { reaction: { emoji: emoji, from: App.online.myColor, ts: Date.now() } });
+  roomSet(App.online.roomCode, { reaction: { emoji: emoji, from: myChatIdentity(), ts: Date.now() } });
 }
 function showReactionBubble(emoji){
   var el = document.createElement('div');
@@ -2686,7 +2843,8 @@ function handleIncomingChat(room){
   if(App.online.chatOpen){
     renderChatMessages();
   } else if(!isFirstSync){
-    var newFromOthers = incoming.filter(function(m){ return m.ts > previousLastTs && m.from !== App.online.myColor; }).length;
+    var myId = myChatIdentity();
+    var newFromOthers = incoming.filter(function(m){ return m.ts > previousLastTs && m.from !== myId; }).length;
     if(newFromOthers>0){
       App.online.chatUnread += newFromOthers;
       updateChatBadge();
@@ -2712,16 +2870,20 @@ function renderChatMessages(){
     wrap.innerHTML = '<div class="chat-empty">No messages yet &mdash; say hi!</div>';
     return;
   }
+  var myId = myChatIdentity();
   wrap.innerHTML = msgs.map(function(m){
-    var own = m.from === App.online.myColor;
+    var own = m.from === myId;
+    var dotColor = (COLORS[m.from] && COLORS[m.from].hex) || 'var(--cream-dim)';
     return '<div class="chat-msg '+(own?'own':'other')+'">' +
-      (own ? '' : '<span class="who" style="color:'+COLORS[m.from].hex+'">'+escapeHtml(m.name||colorLabelForChat(m.from))+'</span>') +
+      (own ? '' : '<span class="who" style="color:'+dotColor+'">'+escapeHtml(m.name||colorLabelForChat(m.from))+'</span>') +
       escapeHtml(m.text) + '</div>';
   }).join('');
   wrap.scrollTop = wrap.scrollHeight;
 }
-function colorLabelForChat(color){
-  return (App.game && colorLabel(App.game, color)) || (COLORS[color] && COLORS[color].label) || color;
+function colorLabelForChat(fromKey){
+  if(App.game && COLORS[fromKey]) return colorLabel(App.game, fromKey);
+  if(COLORS[fromKey]) return COLORS[fromKey].label;
+  return 'Spectator';
 }
 function openChatPanel(){
   if(App.mode!=='online') return;
@@ -2744,7 +2906,7 @@ function sendChatMessage(text){
   roomGet(App.online.roomCode).then(function(res){
     if(res.timedOut || res.unavailable || !res.room){ chatSending=false; toast('Message not sent \u2014 try again'); return; }
     var existing = (res.room.chat && Array.isArray(res.room.chat.messages)) ? res.room.chat.messages : [];
-    var msg = { from: App.online.myColor, name: App.online.myName, text: text, ts: Date.now() };
+    var msg = { from: myChatIdentity(), name: App.online.myName, text: text, ts: Date.now() };
     var updated = existing.concat([msg]).slice(-CHAT_HISTORY_LIMIT);
     roomSet(App.online.roomCode, { chat: { messages: updated } }).then(function(setRes){
       chatSending = false;
@@ -2943,6 +3105,7 @@ document.getElementById('btn-leave-game').addEventListener('click', function(){
   App.online.chatUnread = 0;
   App.online._chatSynced = false;
   App.online.chatLastTs = 0;
+  App.online.isSpectator = false;
   App.game = null;
   App.mode = null;
   clearOnlineSession();
@@ -2956,6 +3119,7 @@ document.getElementById('btn-gameover-home').addEventListener('click', function(
   App.online.chatUnread = 0;
   App.online._chatSynced = false;
   App.online.chatLastTs = 0;
+  App.online.isSpectator = false;
   App.game = null;
   App.mode = null;
   clearOnlineSession();
